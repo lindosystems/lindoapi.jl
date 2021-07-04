@@ -1,0 +1,12 @@
+name = "LINDO"
+uuid = "c0db8ab0-58e9-46b6-bd51-e77d1c638a2c"
+authors = ["JHaasIII92 <31041229+JHaasIII92@users.noreply.github.com>"]
+version = "0.4.1"
+
+[deps]
+CEnum = "fa961155-64e5-5f13-b03f-caf6b980ea82"
+Libdl = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
+
+[compat]
+CEnum = "0.3, 0.4"
+julia = "1"
