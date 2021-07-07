@@ -9,9 +9,12 @@ include(depsjl_path)
 # Module initialization function
 
 using CEnum
+import SparseArrays
 include("gen/liblindo_common.jl")
 include("gen/liblindo_api.jl")
 include("gen/ctypes.jl")
+include("MOI/MOI_wrapper.jl")
+
 export Ctm, Ctime_t, Cclock_t
 
 end # module
