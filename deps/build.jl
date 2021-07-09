@@ -48,9 +48,9 @@ function library()
     if Sys.iswindows()
         LS_MAJOR, LS_MINOR = ls_get_version(joinpath(PATH, "include/lsversion.sh"))
         if is_64bits
-            Liblindo = joinpath(PATH,"bin/win64/lindo64_"*LS_MAJOR*"_"*LS_MINOR)
+            liblindo = joinpath(PATH,"bin/win64/lindo64_"*LS_MAJOR*"_"*LS_MINOR)
         else
-            Liblindo = joinpath(PATH,"bin/win32/lindo32_"*LS_MAJOR*"_"*LS_MINOR)
+            liblindo = joinpath(PATH,"bin/win32/lindo32_"*LS_MAJOR*"_"*LS_MINOR)
         end
     elseif Sys.islinux()
         if is_64bits
