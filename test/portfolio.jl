@@ -24,7 +24,7 @@ Bzsed on
 
 import Lindoapi
 using Printf
-const LS = LINDO
+const LS = Lindoapi
 PATH = ENV["LINDOAPI_HOME"]
 
 # number of constraints

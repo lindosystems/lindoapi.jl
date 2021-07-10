@@ -16,7 +16,7 @@
 
 import Lindoapi
 using Printf
-const LS = LINDO
+const LS = Lindoapi
 PATH = ENV["LINDOAPI_HOME"]
 
 nCons = 4
