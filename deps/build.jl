@@ -50,19 +50,19 @@ function library()
         if is_64bits
             liblindo = joinpath(PATH,"bin/win64/lindo64_"*LS_MAJOR*"_"*LS_MINOR)
         else
-            liblindo = joinpath(PATH,"bin/win32/lindo32_"*LS_MAJOR*"_"*LS_MINOR)
+            liblindo = joinpath(PATH,"bin/win32/lindo"*LS_MAJOR*"_"*LS_MINOR)
         end
     elseif Sys.islinux()
         if is_64bits
             liblindo = joinpath(PATH,"bin/linux64/liblindo64")
         else
-            liblindo = joinpath(PATH,"bin/linux32/liblindo32")
+            liblindo = joinpath(PATH,"bin/linux32/liblindo")
         end
     elseif Sys.isapple()
         if is_64bits
             liblindo = joinpath(PATH,"bin/osx64x86/liblindo64")
         else
-            liblindo = joinpath(PATH,"bin/osx32x86/liblindo32")
+            liblindo = joinpath(PATH,"bin/osx32x86/liblindo")
         end
     else
         error("NOPE")#get_error_message_if_not_found()
