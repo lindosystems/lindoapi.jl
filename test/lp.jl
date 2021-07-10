@@ -14,7 +14,7 @@
 #            -inf <= x3 <= 10
 #            -inf <= x4 <= +inf
 
-import LINDO
+import Lindoapi
 using Printf
 const LS = LINDO
 PATH = ENV["LINDOAPI_HOME"]

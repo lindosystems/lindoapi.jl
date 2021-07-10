@@ -22,7 +22,7 @@ Bzsed on
                    x(i)  : a 0-1 indicator if asset i is invested on.
 =#
 
-import LINDO
+import Lindoapi
 using Printf
 const LS = LINDO
 PATH = ENV["LINDOAPI_HOME"]
