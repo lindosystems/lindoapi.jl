@@ -1,7 +1,7 @@
 # lindoapi.jl
 
 
-Lindoapi a wrapper LINDO API 
+Lindoapi a wrapper for the LINDO API 
 
 This API gives you access to LINDO's powerful solvers for Stochastic, Linear, Nonlinear (convex & nonconvex/Global), Quadratic, Quadratically Constrained, Second Order Cone and Integer optimization.
 
