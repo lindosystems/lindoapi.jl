@@ -26,7 +26,7 @@ $ export LINDOAPI_HOME="/opt/lindoapi"
 To add the package in Julia
 ```julia
 using Pkg
-Pkg.add("https://github.com/lindosystems/lindoapi.jl")
+Pkg.add(url="https://github.com/lindosystems/lindoapi.jl")
 ```
 
 ## Sample lp.jl
