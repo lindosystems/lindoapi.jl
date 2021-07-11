@@ -18,7 +18,13 @@ In a Dos command prompt
 > set LINDOAPI_HOME="c:/lindoapi"
 ```
 
-For Mac Linux
+For Mac and Linux
 ```sh
 $ export LINDOAPI_HOME="/opt/lindoapi"  
+```
+
+To add the package in Julia
+```julia
+using Pkg
+Pkg.add("https://github.com/lindosystems/lindoapi.jl")
 ```
