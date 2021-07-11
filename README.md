@@ -1,4 +1,5 @@
-# lindoapi-julia
+# lindoapi.jl
+
 
 Lindoapi a wrapper LINDO API 
 
