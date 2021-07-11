@@ -17,10 +17,18 @@ In a Dos command prompt
 ```dos
 > set LINDOAPI_HOME="c:/lindoapi"
 ```
+Or in julia
+```julia
+ENV["LINDOAPI_HOME"] = "c:/lindoapi"
+```
 
 For Mac and Linux
 ```sh
 $ export LINDOAPI_HOME="/opt/lindoapi"  
+```
+Or in julia
+```julia
+ENV["LINDOAPI_HOME"] = "/opt/lindoapi"
 ```
 
 To add the package in Julia
