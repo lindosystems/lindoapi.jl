@@ -126,7 +126,6 @@ The pointer is stored as a feild.
 
     env::Env
     ptr::pLSmodel
-
     # A flag to keep track of MOI.Silent
     # An optimizer attribute for silencing the output of an optimizer.
     silent::Bool
@@ -251,12 +250,12 @@ function _get_next_column(model::Optimizer)
     model.next_column += 1
     return model.next_column - 1
 end
+
 function _get_next_row(model::Optimizer)
     model.next_row += 1
     return model.next_row - 1
 end
 
-# LSaddVariables(pModel, nNumadds, pszVarTypes, paszVarNames, paiAcols, panAcols, padAcoef, paiArows, padC, padL, padU)
 function MOI.add_variables(model::Optimizer, N::Int)
     """
         Add n scalar variables to the model, returning a vector of variable indices.
@@ -302,6 +301,7 @@ function update_nonzero_affine_coefs(model::Optimizer, nnz::Int)
     model.nonzero_affine_coefs += nnz
     return
 end
+
 function MOI.add_constraint(model::Optimizer, f::MOI.ScalarAffineFunction{Float64}, set::_SUPPORTED_SCALAR_SETS,)
 """ Add one Scalar Affine constraint to the model
     f = MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.(c, x), 0) --> x'c + 0.0
@@ -340,32 +340,30 @@ Call to MOI.optimize! block
 
 function _parse_objective(model::Optimizer, f::MOI.ScalarAffineFunction{Float64})
     scalar = f.constant
-    cols, coef = _get_cols_coefs(model,f)
+    nonzero_count, cols, coef = _get_cols_coefs(model,f)
     return scalar, cols, coef
 end
+
 function _parse_objective(model::Optimizer, f::Nothing)
     error("No Objective function set!!!")
 end
 
 function _parse_affine_constraints(model::Optimizer)
-    #len
     nonzero = model.nonzero_affine_coefs
     m = model.next_row - 1
     n = model.next_column - 1
 
-    acConTypes = Vector{Cchar}(undef,n)
-    adB = Vector{Cdouble}(undef, n)
+    acConTypes = Vector{Cchar}(undef, m)
+    adB = Vector{Cdouble}(undef, m)
     adA = Vector{Cdouble}(undef, nonzero)
     anRowX = Vector{Int32}(undef,nonzero)
     anBegCol = Vector{Int32}(undef,n+1)
     posA = 1
     posBeg = 1
     foundBeg = false
-    for i in 1:m
+    for i in 1:n
         foundBeg = false
-        acConTypes[i] = model.affine_constraint_info[i].sence
-        adB[i] = model.affine_constraint_info[i].b_row
-        for j in 1:n
+        for j in 1:m
             A_ij = model.affine_constraint_info[j].coefficients[i]
             if  A_ij != 0
                 adA[posA] = A_ij
@@ -381,6 +379,10 @@ function _parse_affine_constraints(model::Optimizer)
     end
     anBegCol[n+1] = nonzero
 
+    for j in 1:m
+        acConTypes[j] = model.affine_constraint_info[j].sence
+        adB[j] = model.affine_constraint_info[j].b_row
+    end
     return acConTypes, adA, adB, anRowX, anBegCol
 end
 
@@ -392,11 +394,8 @@ function parse_variables(model::Optimizer)
     for var_info in values(model.variable_info)
         pdLower[count] = var_info.lower_bound_bounded
         pdUpper[count] = var_info.upper_bound_bounded
+        count += 1
     end
-    # for i in 1:nCon
-    #     pdLower[i] = model.variable_info[i].lower_bound_bounded
-    #     pdUpper[i] = model.variable_info[i].upper_bound_bounded
-    # end
     return pdLower, pdUpper
 end
 
@@ -428,13 +427,24 @@ function MOI.optimize!(model::Optimizer)
     ret = LSoptimize(model.ptr, LS_METHOD_FREE, pnStatus)
 
     _check_ret(model, ret)
-
-    dObj = Cdouble[-1]
-    LSgetInfo(model.ptr, LS_DINFO_POBJ, dObj)
-    _check_ret(model, ret)
-    println(dObj)
-
+    return
 end
+
+function MOI.get(model::Optimizer, attr::MOI.ObjectiveValue)
+    dObj = Cdouble[-1]
+    ret = LSgetInfo(model.ptr, LS_DINFO_POBJ, dObj)
+    _check_ret(model, ret)
+    return dObj
+end
+
+function MOI.get(model::Optimizer, attr::MOI.VariablePrimal, x::MOI.VariableIndex)
+    nVars = model.next_column - 1
+    padPrimal = Vector{Cdouble}(undef, nVars)
+    ret = LSgetPrimalSolution(model.ptr, padPrimal)
+    _check_ret(model, ret)
+    return padPrimal[1]
+end
+
 #=================================================================================
 ==================================================================================#
 function Base.show(io::IO, model::Optimizer)
