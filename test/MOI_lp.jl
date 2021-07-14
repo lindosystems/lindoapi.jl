@@ -63,7 +63,7 @@ MOI.GreaterThan(b4),
 
 MOI.optimize!(OPTIMIZER)
 dObj = MOI.get(OPTIMIZER, MOI.ObjectiveValue())
-primal = MOI.get(OPTIMIZER, MOI.VariablePrimal(), x)
+primal = MOI.get(OPTIMIZER, MOI.VariablePrimal())
 
 #=
     Printing out objective value and primal solution

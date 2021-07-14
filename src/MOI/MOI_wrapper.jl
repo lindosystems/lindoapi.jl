@@ -437,12 +437,12 @@ function MOI.get(model::Optimizer, attr::MOI.ObjectiveValue)
     return dObj
 end
 
-function MOI.get(model::Optimizer, attr::MOI.VariablePrimal, x::MOI.VariableIndex)
+function MOI.get(model::Optimizer, attr::MOI.VariablePrimal)
     nVars = model.next_column - 1
     padPrimal = Vector{Cdouble}(undef, nVars)
     ret = LSgetPrimalSolution(model.ptr, padPrimal)
     _check_ret(model, ret)
-    return padPrimal[1]
+    return padPrimal
 end
 
 #=================================================================================
