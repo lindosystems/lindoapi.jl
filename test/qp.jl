@@ -28,9 +28,9 @@
 #           Risk of Loss Factor:
 #           K = 0.4
 
-import LINDO
+import Lindoapi
 using Printf
-const LS = LINDO
+const LS = Lindoapi
 PATH = ENV["LINDOAPI_HOME"]
 
 # LP data

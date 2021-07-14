@@ -11,9 +11,9 @@
 #                         x^2 + y   <=  6;
 #                         x   + y^2 <=  6;
 #                         x, y unconstrained in sign;
-import LINDO
+import Lindoapi
 using Printf
-const LS = LINDO
+const LS = Lindoapi
 PATH = ENV["LINDOAPI_HOME"]
 
 uDict = Dict(

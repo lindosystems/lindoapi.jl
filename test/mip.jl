@@ -11,9 +11,9 @@
 #               [r5]               x4 +      x6  <=1;
 #
 #               x1,x2,x3,x4,x5,x6 are binary variables
-import LINDO
+import Lindoapi
 using Printf
-const LS = LINDO
+const LS = Lindoapi
 PATH = ENV["LINDOAPI_HOME"]
 
 uDict = Dict(
