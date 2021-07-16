@@ -10,7 +10,12 @@ const _INVERSE_HASH = x -> CleverDicts.index_to_key(MOI.VariableIndex, x)
 const _SUPPORTED_OBJECTIVE_FUNCTION = Union{Nothing, MOI.AbstractFunction}
 
 const _SUPPORTED_SCALAR_SETS =
-    Union{MOI.GreaterThan{Float64},MOI.LessThan{Float64},MOI.EqualTo{Float64}}
+    Union{
+        MOI.GreaterThan{Float64},
+        MOI.LessThan{Float64},
+        MOI.EqualTo{Float64},
+        MOI.Interval{Float64}
+        }
 
 const _SCALAR_SETS = Dict(
         MOI.GreaterThan{Float64} => LS_CONTYPE_GE,
@@ -273,6 +278,25 @@ function MOI.add_variables(model::Optimizer, N::Int)
         indices[i] = index
     end
     return indices
+end
+
+# variable_info.lower_bound_bounded = 0.0
+# variable_info.upper_bound_bounded = typemax(Float64)
+function MOI.add_constraint(model::Optimizer, xi::MOI.SingleVariable, s::S
+    ) where {S <: _SUPPORTED_SCALAR_SETS}
+    var = _info(model, xi.variable)
+    if S <: MOI.Interval{Float64}
+        var.lower_bound_bounded = s.lower
+        var.upper_bound_bounded = s.upper
+    elseif S <: MOI.GreaterThan{Float64}
+        var.lower_bound_bounded = s.value
+    elseif S <: MOI.LessThan{Float64}
+        var.upper_bound_bounded = s.value
+    else
+        #equal to
+    end
+
+    return
 end
 
 function _get_cols_coefs(model::Optimizer, f::MOI.ScalarAffineFunction{Float64}) #TODO make this generic
