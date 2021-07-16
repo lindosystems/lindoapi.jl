@@ -9,6 +9,11 @@
 #              4x1 + 5x2 + 8x3          = 40
 #                    7x2 + 1x3         >= 10
 #
+#               2 <= x1 <= 5
+#               1 <= x2 <= +inf
+#            -inf <= x3 <= 10
+#            -inf <= x4 <= +inf
+
 using Lindoapi
 using LinearAlgebra
 using MathOptInterface
@@ -30,6 +35,11 @@ b3 = 40.0
 b4 = 10.0
 
 x = MOI.add_variables(OPTIMIZER,4)
+
+MOI.add_constraint(OPTIMIZER, MOI.SingleVariable(x[1]), MOI.Interval(2.0,5.0))
+MOI.add_constraint(OPTIMIZER, MOI.SingleVariable(x[2]), MOI.Interval(1.0,typemax(Float64)))
+MOI.add_constraint(OPTIMIZER, MOI.SingleVariable(x[3]), MOI.Interval(-typemax(Float64),10.0))
+MOI.add_constraint(OPTIMIZER, MOI.SingleVariable(x[4]), MOI.Interval(-typemax(Float64),typemax(Float64)))
 
 MOI.set(
 OPTIMIZER,
