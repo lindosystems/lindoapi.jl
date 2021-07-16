@@ -283,19 +283,16 @@ end
 # variable_info.lower_bound_bounded = 0.0
 # variable_info.upper_bound_bounded = typemax(Float64)
 function MOI.add_constraint(model::Optimizer, xi::MOI.SingleVariable, s::S
-    ) where {S <: _SUPPORTED_SCALAR_SETS}
+    ) where {S <: Union{MOI.Interval{Float64},MOI.GreaterThan{Float64},MOI.LessThan{Float64}}}
     var = _info(model, xi.variable)
     if S <: MOI.Interval{Float64}
         var.lower_bound_bounded = s.lower
         var.upper_bound_bounded = s.upper
     elseif S <: MOI.GreaterThan{Float64}
         var.lower_bound_bounded = s.value
-    elseif S <: MOI.LessThan{Float64}
+    else    #MOI.LessThan{Float64}}
         var.upper_bound_bounded = s.value
-    else
-        #equal to
     end
-
     return
 end
 
