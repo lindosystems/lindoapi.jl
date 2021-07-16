@@ -31,8 +31,8 @@ anBegCol = Int32[0,2,5,7,9]
 pnLenCol = C_NULL
 adA = Cdouble[3.0,4.0,6.0,5.0,7.0,8.0,1.0,2.0,9.0]
 anRowX = Int32[0,2,1,2,3,2,3,0,1]
-pdLower = C_NULL#Cdouble[2,1,-(LS.LS_INFINITY), -(LS.LS_INFINITY)]
-pdUpper = C_NULL#Cdouble[5,LS.LS_INFINITY, 10, LS.LS_INFINITY]
+pdLower = Cdouble[2,1,-(LS.LS_INFINITY), -(LS.LS_INFINITY)]
+pdUpper = Cdouble[5,LS.LS_INFINITY, 10, LS.LS_INFINITY]
 
 # create Lindo enviroment and model objects
 LicenseKey = Vector{UInt8}(undef,1024)
