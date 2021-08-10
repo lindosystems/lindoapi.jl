@@ -157,8 +157,10 @@ The pointer is stored as a feild.
         Nothing,
         Dict{String, Union{Nothing, MOI.VariableIndex}},
     }
+    enable_interrupts::Bool
 
-    function Optimizer(env::Union{Nothing, LSenv} = nothing)
+    function Optimizer(env::Union{Nothing, LSenv} = nothing,
+                       enable_interrupts::Bool = false,)
         model = new()
         model.ptr = C_NULL
         model.env = env === nothing ? Env() : env
