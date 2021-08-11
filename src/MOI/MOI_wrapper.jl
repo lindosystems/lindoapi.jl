@@ -240,8 +240,13 @@ end
 function MOI.is_empty(model)
     """
         Returns false if the model has any
-    variables, constraints, and model attributes
+        variables, constraints, and model attributes
     """
+    model.objective_type != _SCALAR_AFFINE && return false
+    !isone(model.next_column) && return false
+    !isempty(model.affine_constraint_info) && return false
+
+    return true
 
 end
 
@@ -479,16 +484,41 @@ end
 Getters setters and Supports
 ==================================================================================#
 
-# supports
-MOI.supports(model::Optimizer, ::MOI.Silent) = true
+# required supports
+MOI.supports(model::Optimizer, ::MOI.SolverName) = true
+MOI.supports(model::Optimizer, ::MOI.RawSolver) = true
 MOI.supports(model::Optimizer, ::MOI.Name) = false
+MOI.supports(model::Optimizer, ::MOI.Silent) = true
 MOI.supports(model::Optimizer, ::MOI.TimeLimitSec) = false
+MOI.supports(model::Optimizer, ::MOI.NumberOfThreads) = false
 
-function MOI.supports(model::Optimizer, ::MOI.ObjectiveFunction{F})where {F <: Union{MOI.ScalarAffineFunction{Float64}}} #TODO add more objective types
-    return true
+
+
+# required setters
+
+
+function MOI.set(model::Optimizer, ::MOI.Silent, flag::Bool)
+    model.silent = flag
+    return
 end
 
-# getters, setters
+
+
+# required getters
+
+
+function MOI.get(model::Optimizer, ::MOI.Silent)
+    return model.silent
+end
+
+"""Returns the name of the solver"""
+MOI.get(model::Optimizer, ::MOI.SolverName) = "Lindo"
+
+""" A model attribute for the object that may be used to access a solver-specific API for this optimizer. """
+MOI.get(model::Optimizer, ::MOI.RawSolver) = model.ptr
+
+
+
 
 # objective_sense::MOI.ObjectiveSense
 """ A model attribute for the objective sense of the objective function,
@@ -504,17 +534,6 @@ function MOI.set(model::Optimizer, ::MOI.ObjectiveSense, sense::MOI.Optimization
     return
 end
 
-"""Returns the name of the solver"""
-MOI.get(model::Optimizer, ::MOI.SolverName) = "Lindo"
-
-""" A model attribute for the object that may be used to access a solver-specific API for this optimizer. """
-MOI.get(model::Optimizer, ::MOI.RawSolver) = model.ptr
-
-function MOI.get(model::Optimizer, ::MOI.Silent)
-    return model.silent
-end
-
-function MOI.set(model::Optimizer, ::MOI.Silent, flag::Bool)
-    model.silent = flag
-    return
+function MOI.supports(model::Optimizer, ::MOI.ObjectiveFunction{F})where {F <: Union{MOI.ScalarAffineFunction{Float64}}} #TODO add more objective types
+    return true
 end
