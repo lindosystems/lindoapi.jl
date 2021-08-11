@@ -83,17 +83,17 @@ mutable struct Env
     key::Vector{UInt8}
     pn_error_code::Vector{Int32}
     finalize_called::Bool
+    attached_models::Int
 
     function Env()
         # pszFname
         fn = "/opt/lindoapi/license/lndapi130.lic" #TODO fix where paths are defined
         key = Vector{UInt8}(undef, 1024)
         # LSloadLicenseString(pszFname, pachLicense)
-        if LSloadLicenseString(fn, key) != 0
-            error("Invalid License!")
-            exit(0)
+        ret = LSloadLicenseString(fn, key)
+        if ret != 0
+            error("Key not found check key $(license_path)")
         end
-
         # ptr = LScreateEnv(pnErrorcode, pszPassword)
         pn_error_code = Int32[-1]
         ptr = LScreateEnv(pn_error_code, key)
@@ -102,12 +102,15 @@ mutable struct Env
             exit(0)
         end
 
-        env = new(ptr, key, pn_error_code, false)
+        env = new(ptr, key, pn_error_code, false, 0)
 
-        finalizer(env) do e #TODO not sure how and where this is called
+        finalizer(env) do e
             e.finalize_called = true
-            error_code = LSdeleteEnv(env.ptr)
-            println("Error Code:  $(error_code)")
+            if e.attached_models == 0
+                ret = LSdeleteEnv(env.ptr)
+                _check_ret(model,ret)
+                e.ptr = C_NULL
+            end
         end
     end
 end
@@ -124,7 +127,7 @@ AbstractOptimizer objects let you solve the model and query the solution.
 The pointer is stored as a feild.
 """
 
-    env::Env
+    env::Union{Nothing,Env}
     ptr::pLSmodel
     # A flag to keep track of MOI.Silent
     # An optimizer attribute for silencing the output of an optimizer.
@@ -181,8 +184,18 @@ The pointer is stored as a feild.
         )
         MOI.empty!(model)
         finalizer(model) do m
-            # frees memort associated with the pointer
-            return
+            println("Finalizing model")
+            ret = LSdeleteModel(m.ptr)
+            _check_ret(m,ret)
+            m.env.attached_models -= 1
+            if env === nothing
+                @assert m.env.attached_models == 0
+                finalize(m.env)
+            elseif m.env.finalize_called && m.env.attached_models == 0
+                ret = LSdeleteEnv(m.env.ptr)
+                _check_ret(m,ret)
+                m.env.ptr = C_NULL
+            end
         end
         return model
     end
@@ -199,11 +212,18 @@ function MOI.empty!(model::Optimizer)
     remove all variables, constraints, and model attributes,
     but not Optimizer attributes
     """
-    pn_error_code = Int32[0]
-    model.ptr  = LScreateModel(model.env, pn_error_code)
-    _check_ret(model, pn_error_code[1])
-    model.objective_sense = MOI.MIN_SENSE
+    if model.ptr != C_NULL
+        ret = LSdeleteModel(model.ptr)
+        _check_ret(model,ret)
+        model.env.attached_models -= 1
+    end
 
+    ret = Int32[0]
+    model.ptr  = LScreateModel(model.env, ret)
+    _check_ret(model, ret[1])
+    model.env.attached_models += 1
+
+    model.objective_sense = MOI.MIN_SENSE
     model.next_column = 1
     model.next_row = 1
     model.nonzero_affine_coefs = 0
