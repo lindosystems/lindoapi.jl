@@ -151,7 +151,7 @@ const LS_REF_GDATA = -15
 const LS_REF_HDATA = -16
 const LS_REF_PREMODEL = -30
 
-@cenum LSparameter::UInt32 begin
+@cenum LSparameter::Int32 begin
     LS_IPARAM_OBJSENSE = 1022
     LS_DPARAM_CALLBACKFREQ = 1023
     LS_DPARAM_OBJPRINTMUL = 1024
@@ -673,7 +673,7 @@ const LS_DOUBLE_PARAMETER_TYPE = LS_DOUBLE_TYPE
 const LS_IPARAM_NLP_MSW_MAXREF = LS_IPARAM_NLP_MSW_POPSIZE
 const LS_IPARAM_STOC_DEBUG_LEVEL = LS_IPARAM_STOC_DEBUG_MASK
 
-@cenum LSfileFormatSprint::UInt32 begin
+@cenum LSfileFormatSprint::Int32 begin
     LS_SPRINT_OUTPUT_FILE_FREE = 0
     LS_SPRINT_OUTPUT_FILE_BIN = 1
     LS_SPRINT_OUTPUT_FILE_TXT = 2
@@ -687,7 +687,7 @@ const LS_IPARAM_MIP_USE_ENUM_HEU = LS_IPARAM_MIP_ENUM_HEUMODE
 const LS_IPARAM_SOLVER_USE_CONCURRENT_OPT = LS_IPARAM_SOLVER_CONCURRENT_OPTMODE
 const LS_IPARAM_GOP_USEBNDLIM = LS_IPARAM_GOP_BNDLIM_MODE
 
-@cenum LSlocation::UInt32 begin
+@cenum LSlocation::Int32 begin
     LSLOC_PRIMAL = 0
     LSLOC_DUAL = 1
     LSLOC_BARRIER = 2
@@ -757,7 +757,7 @@ const LS_IPARAM_NLPSOLVER = LS_IPARAM_NLP_SOLVER
 const LS_IPARAM_MODEL_CONVEX_FLAG = LS_IPARAM_NLP_CONVEX
 const LS_IPARAM_NLP_SOLVEASLP = LS_IPARAM_NLP_SOLVE_AS_LP
 
-@cenum LSinformation::UInt32 begin
+@cenum LSinformation::Int32 begin
     LS_IINFO_NUM_NONZ_OBJ = 11001
     LS_IINFO_NUM_SEMICONT = 11002
     LS_IINFO_NUM_SETS = 11003
@@ -1239,7 +1239,7 @@ const LS_DINFO_MIPOBJ = LS_DINFO_MIP_OBJ
 const LS_IPARAM_BARRIER_PROB_TO_SOLVE = LS_IPARAM_PROB_TO_SOLVE
 const LS_IINFO_STATUS = LS_IINFO_PRIMAL_STATUS
 
-@cenum LSstatus::UInt32 begin
+@cenum LSstatus::Int32 begin
     LS_STATUS_OPTIMAL = 1
     LS_STATUS_BASIC_OPTIMAL = 2
     LS_STATUS_INFEASIBLE = 3
@@ -1266,7 +1266,7 @@ const LS_GOPSOLSTAT_FEASIBLE = LS_STATUS_FEASIBLE
 const LS_GOPSOLSTAT_UNKNOWN = LS_STATUS_UNKNOWN
 const LS_GOPSOLSTAT_NUMERICAL_ERROR = LS_STATUS_NUMERICAL_ERROR
 
-@cenum LSnormOptions::UInt32 begin
+@cenum LSnormOptions::Int32 begin
     LS_IIS_NORM_FREE = 0
     LS_IIS_NORM_ONE = 1
     LS_IIS_NORM_INFINITY = 2
@@ -1277,7 +1277,7 @@ const LS_IIS_NORM_NONE = LS_IIS_NORM_FREE
 const LS_IPARAM_STOC_SAMPLING_METHOD = LS_IPARAM_STOC_VARCONTROL_METHOD
 const LS_DPARAM_GOP_OPTTOL = LS_DPARAM_GOP_RELOPTTOL
 
-@cenum LSoperator::UInt32 begin
+@cenum LSoperator::Int32 begin
     EP_NO_OP = 0
     EP_PLUS = 1001
     EP_MINUS = 1002
@@ -1491,7 +1491,7 @@ const pLSspvIdx = Ptr{LSspvIdx}
 const LSspv = Cvoid
 const pLSspv = Ptr{LSspv}
 
-@cenum LSerrorCode::UInt32 begin
+@cenum LSerrorCode::Int32 begin
     LSERR_NO_ERROR = 0
     LSERR_OUT_OF_MEMORY = 2001
     LSERR_CANNOT_OPEN_FILE = 2002
@@ -1712,7 +1712,7 @@ const pLSspv = Ptr{LSspv}
     LSERR_LAST_ERROR = 2751
 end
 
-@cenum LSOptMethod::UInt32 begin
+@cenum LSOptMethod::Int32 begin
     LS_METHOD_FREE = 0
     LS_METHOD_PSIMPLEX = 1
     LS_METHOD_DSIMPLEX = 2
@@ -1729,14 +1729,14 @@ end
     LS_METHOD_FILELP = 13
 end
 
-@cenum LSSearchStrategy::UInt32 begin
+@cenum LSSearchStrategy::Int32 begin
     LS_STRATEGY_USER = 0
     LS_STRATEGY_PRIMIP = 1
     LS_STRATEGY_NODEMIP = 2
     LS_STRATEGY_HEUMIP = 3
 end
 
-@cenum LSNLPOptMethod::UInt32 begin
+@cenum LSNLPOptMethod::Int32 begin
     LS_NMETHOD_FREE = 4
     LS_NMETHOD_LSQ = 5
     LS_NMETHOD_QP = 6
@@ -1746,7 +1746,7 @@ end
     LS_NMETHOD_IPOPT = 10
 end
 
-@cenum LSsolverOptions::UInt32 begin
+@cenum LSsolverOptions::Int32 begin
     LS_PROB_SOLVE_FREE = 0
     LS_PROB_SOLVE_PRIMAL = 1
     LS_PROB_SOLVE_DUAL = 2
@@ -1764,7 +1764,7 @@ end
     LSSOL_INTERIOR_REDCOST = 18
 end
 
-@cenum LSdecompostionOptions::UInt32 begin
+@cenum LSdecompostionOptions::Int32 begin
     LS_LINK_BLOCKS_FREE = 0
     LS_LINK_BLOCKS_SELF = 1
     LS_LINK_BLOCKS_NONE = 2
@@ -1774,27 +1774,27 @@ end
     LS_LINK_BLOCKS_MATRIX = 6
 end
 
-@cenum LSwriteOptions::UInt32 begin
+@cenum LSwriteOptions::Int32 begin
     LS_MPS_USE_MAX_NOTE = 0
     LS_MPS_USE_MAX_CARD = 1
     LS_MPS_USE_MAX_FLIP = 2
 end
 
-@cenum LSderivMethod::UInt32 begin
+@cenum LSderivMethod::Int32 begin
     LS_DERIV_FREE = 0
     LS_DERIV_FORWARD_DIFFERENCE = 1
     LS_DERIV_BACKWARD_DIFFERENCE = 2
     LS_DERIV_CENTER_DIFFERENCE = 3
 end
 
-@cenum LSsetType::UInt32 begin
+@cenum LSsetType::Int32 begin
     LS_MIP_SET_CARD = 4
     LS_MIP_SET_SOS1 = 1
     LS_MIP_SET_SOS2 = 2
     LS_MIP_SET_SOS3 = 3
 end
 
-@cenum LSQtermType::UInt32 begin
+@cenum LSQtermType::Int32 begin
     LS_QTERM_NONE = 0
     LS_QTERM_INDEF = 1
     LS_QTERM_POSDEF = 2
@@ -1803,7 +1803,7 @@ end
     LS_QTERM_NEG_SEMIDEF = 5
 end
 
-@cenum LSmipGeneralMode::UInt32 begin
+@cenum LSmipGeneralMode::Int32 begin
     LS_MIP_MODE_NO_TIME_EVENTS = 2
     LS_MIP_MODE_FAST_FEASIBILITY = 4
     LS_MIP_MODE_FAST_OPTIMALITY = 8
@@ -1812,7 +1812,7 @@ end
     LS_MIP_MODE_NO_LSLVDP = 64
 end
 
-@cenum LSmipCutLevel::UInt32 begin
+@cenum LSmipCutLevel::Int32 begin
     LS_MIP_GUB_COVER_CUTS = 2
     LS_MIP_FLOW_COVER_CUTS = 4
     LS_MIP_LIFT_CUTS = 8
@@ -1831,7 +1831,7 @@ end
     LS_MIP_LP_ROUND_CUTS = 65536
 end
 
-@cenum LSmipPrepLevel::UInt32 begin
+@cenum LSmipPrepLevel::Int32 begin
     LS_MIP_PREP_SPRE = 2
     LS_MIP_PREP_PROB = 4
     LS_MIP_PREP_COEF = 8
@@ -1845,7 +1845,7 @@ end
     LS_MIP_PREP_SIMROW = 2048
 end
 
-@cenum LSsolverPrepLevel::UInt32 begin
+@cenum LSsolverPrepLevel::Int32 begin
     LS_SOLVER_PREP_SPRE = 2
     LS_SOLVER_PREP_PFOR = 4
     LS_SOLVER_PREP_DFOR = 8
@@ -1859,7 +1859,7 @@ end
     LS_SOLVER_PREP_EXTERNAL = 16384
 end
 
-@cenum LSanalyzeLevel::UInt32 begin
+@cenum LSanalyzeLevel::Int32 begin
     LS_NECESSARY_ROWS = 1
     LS_NECESSARY_COLS = 2
     LS_SUFFICIENT_ROWS = 4
@@ -1873,7 +1873,7 @@ end
     LS_IIS_SETS = 1024
 end
 
-@cenum LSiisMethods::UInt32 begin
+@cenum LSiisMethods::Int32 begin
     LS_IIS_DEFAULT = 0
     LS_IIS_DEL_FILTER = 1
     LS_IIS_ADD_FILTER = 2
@@ -1883,7 +1883,7 @@ end
     LS_IIS_ELS_FILTER = 6
 end
 
-@cenum LSwhereInMIP::UInt32 begin
+@cenum LSwhereInMIP::Int32 begin
     LS_MIP_IN_PRESOLVE = 0
     LS_MIP_IN_FP_MODE = 1
     LS_MIP_IN_HEU_MODE = 2
@@ -1905,7 +1905,7 @@ end
     LS_IMAT_AIJ = 0
 end
 
-@cenum LSstocOptDistribFun::UInt32 begin
+@cenum LSstocOptDistribFun::Int32 begin
     LSDIST_TYPE_BINOMIAL = 701
     LSDIST_TYPE_DISCRETE = 702
     LSDIST_TYPE_DISCRETE_BLOCK = 703
@@ -1940,7 +1940,7 @@ end
     LSDIST_TYPE_SYMMETRICSTABLE = 820
 end
 
-@cenum LSstocOptModifyRule::UInt32 begin
+@cenum LSstocOptModifyRule::Int32 begin
     LS_REPLACE = 0
     LS_ADD = 1
     LS_SUB = 2
@@ -1978,7 +1978,7 @@ end
     LS_DETEQ_CHANCE = 2
 end
 
-@cenum LSdistribOptFun::UInt32 begin
+@cenum LSdistribOptFun::Int32 begin
     LS_USER = 0
     LS_PDF = 1
     LS_CDF = 2
@@ -1994,7 +1994,7 @@ end
     LS_CORR_SPEARMAN = 2
 end
 
-@cenum LSsampleOptType::UInt32 begin
+@cenum LSsampleOptType::Int32 begin
     LS_MONTECARLO = 0
     LS_LATINSQUARE = 1
     LS_ANTITHETIC = 2
@@ -2011,7 +2011,7 @@ end
     LS_RANDGEN_MERSENNE = 6
 end
 
-@cenum LSsampOptNCMAlg::UInt32 begin
+@cenum LSsampOptNCMAlg::Int32 begin
     LS_NCM_STD = 1
     LS_NCM_GA = 2
     LS_NCM_ALTP = 4
@@ -2019,7 +2019,7 @@ end
     LS_NCM_L2NORM_NLP = 16
 end
 
-@cenum LSptrTypes::UInt32 begin
+@cenum LSptrTypes::Int32 begin
     LS_PTR_ENV = 0
     LS_PTR_MODEL = 1
     LS_PTR_SAMPLE = 2
@@ -2035,7 +2035,7 @@ end
     LS_MTMODE_CC = 4
 end
 
-@cenum LS_MSW_PREPMODE::UInt32 begin
+@cenum LS_MSW_PREPMODE::Int32 begin
     LS_MSW_MODE_TRUNCATE_FREE = 1
     LS_MSW_MODE_SCALE_REFSET = 2
     LS_MSW_MODE_EXPAND_RADIUS = 4
@@ -2047,7 +2047,7 @@ end
     LS_MSW_MODE_POWER_SOLVE = 256
 end
 
-@cenum LS_GA_CROSSOVER::UInt32 begin
+@cenum LS_GA_CROSSOVER::Int32 begin
     LS_GA_CROSS_SBX = 101
     LS_GA_CROSS_BLXA = 102
     LS_GA_CROSS_BLXAB = 103
@@ -2056,7 +2056,7 @@ end
     LS_GA_CROSS_TWOPOINT = 202
 end
 
-@cenum LS_SOLVER_MODE::UInt32 begin
+@cenum LS_SOLVER_MODE::Int32 begin
     LS_SOLVER_MODE_POOLBAS = 1
     LS_SOLVER_MODE_POOLEDGE = 2
     LS_SOLVER_MODE_INTBAS = 4
@@ -2067,7 +2067,7 @@ end
     LS_SOLVER_MODE_LEX_RESOLVEFAIL = 128
 end
 
-@cenum LSparClass::UInt32 begin
+@cenum LSparClass::Int32 begin
     LS_PARCLASS_BITMASK = 1
     LS_PARCLASS_MULSTEP = 2
     LS_PARCLASS_TUNPAR = 4

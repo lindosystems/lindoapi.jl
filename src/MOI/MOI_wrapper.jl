@@ -60,19 +60,17 @@ end
 
 mutable struct _ConstraintInfo
     row::Int
+    set::_SUPPORTED_SCALAR_SETS
     sence::Char
     coefficients::Vector{Cdouble}
     variables_index::Vector{Cint}
     b_row::Cdouble
     name::String
 
-    function _ConstraintInfo(row::Int, sence::Char, coefficients::Vector{Cdouble}, variables_index::Vector{Cint}, b_row::Cdouble)
+    function _ConstraintInfo(row::Int, set::_SUPPORTED_SCALAR_SETS)
         constraint_info = new()
         constraint_info.row = row
-        constraint_info.sence = sence
-        constraint_info.coefficients = coefficients
-        constraint_info.variables_index = variables_index
-        constraint_info.b_row = b_row
+        constraint_info.set = set
         constraint_info.name = ""
         return constraint_info
     end
@@ -87,7 +85,7 @@ mutable struct Env
 
     function Env()
         # pszFname
-        fn = "/opt/lindoapi/license/lndapi130.lic" #TODO fix where paths are defined
+        fn = "/opt/lindoapi/license/lndapi130.lic"
         key = Vector{UInt8}(undef, 1024)
         # LSloadLicenseString(pszFname, pachLicense)
         ret = LSloadLicenseString(fn, key)
@@ -139,12 +137,12 @@ The pointer is stored as a feild.
     objective_function::_SUPPORTED_OBJECTIVE_FUNCTION
     #
     objective_sense::MOI.OptimizationSense
-
+    lindoTerminationStatus::Int
     # Use to track the next variable
     next_column::Int
     # Use to track next constraint
     next_row::Int
-
+    last_constraint_index::Int
     # Goal is to support LP
     # use affine_constraint_info to store each affine constraint
     affine_constraint_info::Dict{Int,_ConstraintInfo}
@@ -164,6 +162,7 @@ The pointer is stored as a feild.
 
     function Optimizer(env::Union{Nothing, LSenv} = nothing,
                        enable_interrupts::Bool = false,)
+
         model = new()
         model.ptr = C_NULL
         model.env = env === nothing ? Env() : env
@@ -171,10 +170,10 @@ The pointer is stored as a feild.
         model.objective_type = _SCALAR_AFFINE
         model.objective_function = nothing
         model.objective_sense = MOI.MIN_SENSE
-
+        model.lindoTerminationStatus = LS_STATUS_UNLOADED
         model.next_column = 1
         model.next_row = 1
-
+        model.last_constraint_index = 0
         model.affine_constraint_info = Dict{Int,_ConstraintInfo}()
         model.nonzero_affine_coefs = 0
 
@@ -184,14 +183,16 @@ The pointer is stored as a feild.
         )
         MOI.empty!(model)
         finalizer(model) do m
-            println("Finalizing model")
+            @info("Finalizing model 185")
             ret = LSdeleteModel(m.ptr)
             _check_ret(m,ret)
             m.env.attached_models -= 1
             if env === nothing
                 @assert m.env.attached_models == 0
+                @info("Finalizing model 191")
                 finalize(m.env)
             elseif m.env.finalize_called && m.env.attached_models == 0
+                @info("Finalizing model 195")
                 ret = LSdeleteEnv(m.env.ptr)
                 _check_ret(m,ret)
                 m.env.ptr = C_NULL
@@ -303,18 +304,14 @@ function MOI.add_variables(model::Optimizer, N::Int)
 end
 
 function _get_cols_coefs(model::Optimizer, f::MOI.ScalarAffineFunction{Float64}) #TODO make this generic
-    len = length(f.terms)
     cols = Cint[]
     coef = Cdouble[]
-    nonzero_count = 0
+    nnz = length(f.terms)
     for term in f.terms
-        if term.coefficient != 0
-            nonzero_count += 1
-        end
         push!(cols, Cint(_info(model, term.variable_index).column - 1))
         push!(coef, Cdouble(term.coefficient))
     end
-    return nonzero_count, cols, coef
+    return nnz, cols, coef
 end
 
 # Since each sense has a diffrent atribute to get the right hand side
@@ -335,21 +332,29 @@ function MOI.add_constraint(model::Optimizer, f::MOI.ScalarAffineFunction{Float6
     set = _SUPPORTED_SCALAR_SETS(b) --> (=, >=, <=)
     b is the right-hand side coefficient.
 """
+    model.last_constraint_index += 1
     row = _get_next_row(model)
     nonzero_count, cols, coef = _get_cols_coefs(model, f)
     update_nonzero_affine_coefs(model, nonzero_count)
     sence, b_row = _sense_and_rhs(set)
     # initialze the _ConstraintInfo type for the one constraint
     # _ConstraintInfo(row::Int, sence::Int8, coefficients::Vector{Cdouble}, variables_index::Vector{Cint}, b_row::Cdouble)
-    constraint_info = _ConstraintInfo(row, sence, coef, cols, b_row)
+    constraint_info = _ConstraintInfo(row,set)
+    constraint_info.sence = sence
+    constraint_info.coefficients = coef
+    constraint_info.variables_index = cols
+    constraint_info.b_row = b_row
     # Add to affine_constraint_info::Dict{Int,_ConstraintInfo}
     model.affine_constraint_info[row] = constraint_info
-    return model.affine_constraint_info[row]
+    return MOI.ConstraintIndex{typeof(f), typeof(set)}(model.last_constraint_index)
 end
 
 function MOI.set(model::Optimizer,
-    O::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}},                #TODO: make more genaric
+    O::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}},
     f::MOI.ScalarAffineFunction{Float64}, )
+    """
+        Set scalar affine objective function
+    """
     # _ObjectiveInfo(objective_type::_ObjectiveType, objective_function::_SUPPORTED_Objective_Function)
     model.objective_type = _SCALAR_AFFINE
     model.objective_function = f
@@ -376,47 +381,61 @@ function _parse_objective(model::Optimizer, f::Nothing)
 end
 
 function _parse_affine_constraints(model::Optimizer)
-    nonzero = model.nonzero_affine_coefs
-    m = model.next_row - 1
+    nnz = model.nonzero_affine_coefs
     n = model.next_column - 1
-
+    m = model.next_row - 1
     acConTypes = Vector{Cchar}(undef, m)
     adB = Vector{Cdouble}(undef, m)
-    adA = Vector{Cdouble}(undef, nonzero)
-    anRowX = Vector{Int32}(undef,nonzero)
-    anBegCol = Vector{Int32}(undef,n+1)
+    adA = Vector{Cdouble}(undef, nnz)
+    anRowX = Vector{Int32}(undef, nnz)
+    anBegCol = Vector{Int32}(undef, n+1)
+
     posA = 1
     posBeg = 1
     foundBeg = false
-    for i in 1:n
+
+    # build adA, anRowX and anBegCol vectors
+    # by looping over affine_constraint_info
+    for i in 0:(n - 1)
         foundBeg = false
         for j in 1:m
-            A_ij = model.affine_constraint_info[j].coefficients[i]
-            if  A_ij != 0
-                adA[posA] = A_ij
-                anRowX[posA] = j - 1
-                if foundBeg == false
-                    anBegCol[posBeg] = posA - 1
-                    posBeg += 1
-                    foundBeg = true
+            temp_len = length(model.affine_constraint_info[j].variables_index) # nonzero index in row
+            for k in 1:temp_len
+                if model.affine_constraint_info[j].variables_index[k] == i
+                    adA[posA] = model.affine_constraint_info[j].coefficients[k]
+                    anRowX[posA] = j - 1
+                    if foundBeg == false
+                        anBegCol[posBeg] = posA - 1
+                        posBeg += 1
+                        foundBeg = true
+                    end
+                    posA += 1
+                    break
                 end
-                posA += 1
+                if model.affine_constraint_info[j].variables_index[k] > i
+                    break
+                end
             end
         end
     end
-    anBegCol[n+1] = nonzero
+    # finish anBegCol with the number on non zeros
+    anBegCol[n+1] = nnz
 
+    # build adB and acConTypes vectors
+    # by looping over each constraint row
     for j in 1:m
-        acConTypes[j] = model.affine_constraint_info[j].sence
         adB[j] = model.affine_constraint_info[j].b_row
+        acConTypes[j] = model.affine_constraint_info[j].sence
     end
+
+
     return acConTypes, adA, adB, anRowX, anBegCol
 end
 
 function parse_variables(model::Optimizer)
-    nCon = model.next_row - 1
-    pdLower = Vector{Cdouble}(undef, nCon)
-    pdUpper = Vector{Cdouble}(undef, nCon)
+    nVars = model.next_column - 1
+    pdLower = Vector{Cdouble}(undef, nVars)
+    pdUpper = Vector{Cdouble}(undef, nVars)
     count = 1
     for var_info in values(model.variable_info)
         pdLower[count] = var_info.lower_bound_bounded
@@ -432,13 +451,23 @@ function MOI.optimize!(model::Optimizer)
     to the correct LSload(*)Data curently running LSloadLPData
     for proof of consept.
     """
+
     pModel = model.ptr
     nCons = model.next_row - 1
     nVars = model.next_column - 1
     dObjSense = _SENSE[model.objective_sense]
-
+    # println(nCons)
+    # println(nVars)
     dObjConst, cols, adC = _parse_objective(model, model.objective_function)
+    # println(dObjConst)
+    # println(cols)
+    # println(adC)
     acConTypes, adA, adB, anRowX, anBegCol = _parse_affine_constraints(model::Optimizer)
+    # println(acConTypes)
+    # println(adA)
+    # println(adB)
+    # println(anRowX)
+    # println(anBegCol)
     pdLower, pdUpper = parse_variables(model::Optimizer)
     nNZ = model.nonzero_affine_coefs
     nDir = 1
@@ -452,7 +481,7 @@ function MOI.optimize!(model::Optimizer)
 
     pnStatus = Int32[-1]
     ret = LSoptimize(model.ptr, LS_METHOD_FREE, pnStatus)
-
+    model.lindoTerminationStatus = pnStatus[1]
     _check_ret(model, ret)
     return
 end
@@ -461,7 +490,7 @@ function MOI.get(model::Optimizer, attr::MOI.ObjectiveValue)
     dObj = Cdouble[-1]
     ret = LSgetInfo(model.ptr, LS_DINFO_POBJ, dObj)
     _check_ret(model, ret)
-    return dObj
+    return dObj[1]
 end
 
 function MOI.get(model::Optimizer, attr::MOI.VariablePrimal)
@@ -491,9 +520,9 @@ MOI.supports(model::Optimizer, ::MOI.Name) = false
 MOI.supports(model::Optimizer, ::MOI.Silent) = true
 MOI.supports(model::Optimizer, ::MOI.TimeLimitSec) = false
 MOI.supports(model::Optimizer, ::MOI.NumberOfThreads) = false
-
-
-
+MOI.supports(model::Optimizer, ::MOI.NumberOfVariables) = true
+MOI.supports(model::Optimizer, ::MOI.ObjectiveFunctionType) = true
+MOI.supports(model::Optimizer, ::MOI.TerminationStatus) = true
 # required setters
 
 
@@ -502,10 +531,17 @@ function MOI.set(model::Optimizer, ::MOI.Silent, flag::Bool)
     return
 end
 
-
-
 # required getters
-
+function MOI.get(model::Optimizer, attr::MOI.TerminationStatus)
+    model.lindoTerminationStatus == LS_STATUS_OPTIMAL && return MOI.OPTIMAL
+    model.lindoTerminationStatus == LS_STATUS_BASIC_OPTIMAL && return MOI.OPTIMAL
+    model.lindoTerminationStatus == LS_STATUS_INFEASIBLE && returnMOI.INFEASIBLE
+    model.lindoTerminationStatus == LS_STATUS_LOCAL_OPTIMAL && return MOI.LOCALLY_SOLVED
+    model.lindoTerminationStatus == LS_STATUS_LOCAL_INFEASIBLE && return MOI.LOCALLY_INFEASIBLE
+    model.lindoTerminationStatus == LS_STATUS_UNBOUNDED && return MOI.INFEASIBLE_OR_UNBOUNDED
+    model.lindoTerminationStatus == LS_STATUS_INFEASIBLE && return MOI.INFEASIBLE_OR_UNBOUNDED
+    return MOI.OPTIMIZE_NOT_CALLED
+end
 
 function MOI.get(model::Optimizer, ::MOI.Silent)
     return model.silent
@@ -517,8 +553,16 @@ MOI.get(model::Optimizer, ::MOI.SolverName) = "Lindo"
 """ A model attribute for the object that may be used to access a solver-specific API for this optimizer. """
 MOI.get(model::Optimizer, ::MOI.RawSolver) = model.ptr
 
+"""  """
+MOI.get(model::Optimizer, ::MOI.NumberOfVariables) = length(model.variable_info)
 
-
+"""  """
+function MOI.get(model::Optimizer, ::MOI.ObjectiveFunctionType)
+    if model.objective_type == _SCALAR_AFFINE
+        return MOI.ScalarAffineFunction{Float64}
+    end
+    return nothing
+end
 
 # objective_sense::MOI.ObjectiveSense
 """ A model attribute for the objective sense of the objective function,
@@ -535,5 +579,16 @@ function MOI.set(model::Optimizer, ::MOI.ObjectiveSense, sense::MOI.Optimization
 end
 
 function MOI.supports(model::Optimizer, ::MOI.ObjectiveFunction{F})where {F <: Union{MOI.ScalarAffineFunction{Float64}}} #TODO add more objective types
+    return true
+end
+
+
+# Compatible Constraints
+
+function MOI.supports_constraint(
+    ::Optimizer, ::Type{MOI.ScalarAffineFunction{Float64}}, ::Type{F}
+) where {F <: Union{
+    MOI.EqualTo{Float64}, MOI.LessThan{Float64}, MOI.GreaterThan{Float64}
+}}
     return true
 end
