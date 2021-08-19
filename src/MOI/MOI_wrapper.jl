@@ -110,7 +110,10 @@ mutable struct Env
             e.finalize_called = true
             if e.attached_models == 0
                 ret = LSdeleteEnv(env.ptr)
-                _check_ret(model,ret)
+                if ret != 0
+                     error("Lindo Error $(ret): Unable to delete enviroment")
+                     exit(0)
+                 end
                 e.ptr = C_NULL
             end
         end
@@ -187,16 +190,13 @@ The pointer is stored as a feild.
         )
         MOI.empty!(model)
         finalizer(model) do m
-            @info("Finalizing model 185")
             ret = LSdeleteModel(m.ptr)
             _check_ret(m,ret)
             m.env.attached_models -= 1
             if env === nothing
                 @assert m.env.attached_models == 0
-                @info("Finalizing model 191")
                 finalize(m.env)
             elseif m.env.finalize_called && m.env.attached_models == 0
-                @info("Finalizing model 195")
                 ret = LSdeleteEnv(m.env.ptr)
                 _check_ret(m,ret)
                 m.env.ptr = C_NULL
