@@ -1,11 +1,10 @@
-
-
 import MathOptInterface
 
 const MOI = MathOptInterface
 const CleverDicts = MOI.Utilities.CleverDicts
 const _HASH = CleverDicts.key_to_index
 const _INVERSE_HASH = x -> CleverDicts.index_to_key(MOI.VariableIndex, x)
+const PATH = ENV["LINDOAPI_HOME"]
 
 const _SUPPORTED_OBJECTIVE_FUNCTION = Union{Nothing, MOI.AbstractFunction}
 
@@ -90,7 +89,7 @@ mutable struct Env
 
     function Env()
         # pszFname
-        fn = "/opt/lindoapi/license/lndapi130.lic"
+        fn = joinpath(PATH, "license/lndapi130.lic")
         key = Vector{UInt8}(undef, 1024)
         # LSloadLicenseString(pszFname, pachLicense)
         ret = LSloadLicenseString(fn, key)
