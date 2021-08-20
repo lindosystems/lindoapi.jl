@@ -11,6 +11,7 @@
 
 using Lindoapi
 using JuMP
+using Printf
 
 c = [1.0, 1.0, 1.0, 1.0]
 
@@ -42,11 +43,11 @@ objVal = objective_value(model)
 #=
     Printing out objective value and primal solution
 =#
-# println()
-# @printf "Objective is: %.5f \n" objVal
-# @printf "%s  %20s\n" "Index" "Primal Value"
-# println(repeat('=', 30))
-# for i in 1:n
-#     @printf "%i %20.5f \n" i value(x[i])
-# end
-# println()
+println()
+@printf "Objective is: %.5f \n" objVal
+@printf "%s  %20s\n" "Index" "Primal Value"
+println(repeat('=', 30))
+for i in 1:n
+    @printf "%i %20.5f \n" i value(x[i])
+end
+println()

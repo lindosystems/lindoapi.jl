@@ -131,7 +131,6 @@ AbstractOptimizer objects let you solve the model and query the solution.
     Wrapping a solver in C will require the use of pointes, and memory management.
 The pointer is stored as a feild.
 """
-
     env::Union{Nothing,Env}
     ptr::pLSmodel
     # A flag to keep track of MOI.Silent
@@ -150,15 +149,19 @@ The pointer is stored as a feild.
     # Use to track next constraint
     next_row::Int
     last_constraint_index::Int
+    #
+    primal_values::Vector{Cdouble}
+    primal_retrived::Bool
     # Goal is to support LP
     # use affine_constraint_info to store each affine constraint
     affine_constraint_info::Dict{Int,_ConstraintInfo}
     nonzero_affine_coefs::Int
+
     variable_info::CleverDicts.CleverDict{
-    MOI.VariableIndex,
-    _VariableInfo,
-    typeof(_HASH),
-    typeof(_INVERSE_HASH),
+        MOI.VariableIndex,
+        _VariableInfo,
+        typeof(_HASH),
+        typeof(_INVERSE_HASH),
     }
 
     name_to_variable::Union{
@@ -180,6 +183,8 @@ The pointer is stored as a feild.
         model.lindoTerminationStatus = LS_STATUS_UNLOADED
         model.next_column = 1
         model.next_row = 1
+        model.primal_values = Vector{Cdouble}(undef,0)
+        model.primal_retrived = false
         model.last_constraint_index = 0
         model.affine_constraint_info = Dict{Int,_ConstraintInfo}()
         model.nonzero_affine_coefs = 0
@@ -227,18 +232,16 @@ function MOI.empty!(model::Optimizer)
     model.ptr  = LScreateModel(model.env, ret)
     _check_ret(model, ret[1])
     model.env.attached_models += 1
-
     model.objective_sense = MOI.MIN_SENSE
     model.next_column = 1
     model.next_row = 1
     model.nonzero_affine_coefs = 0
-
     model.name_to_variable = nothing
-
+    model.primal_values = Vector{Cdouble}(undef,0)
+    model.primal_retrived = false
     model.objective_type = _SCALAR_AFFINE
     model.objective_function = nothing
     model.objective_sense = MOI.MIN_SENSE
-
     empty!(model.variable_info)
 end
 
@@ -250,9 +253,7 @@ function MOI.is_empty(model)
     model.objective_type != _SCALAR_AFFINE && return false
     !isone(model.next_column) && return false
     !isempty(model.affine_constraint_info) && return false
-
     return true
-
 end
 
 function _check_ret(model::Optimizer,ret::Int32)
@@ -513,12 +514,24 @@ function MOI.get(model::Optimizer, attr::MOI.ObjectiveValue)
     return dObj[1]
 end
 
-function MOI.get(model::Optimizer, attr::MOI.VariablePrimal)
+# Since the Lindo API can only quary for
+# all primal solution this a seprate function
+# is written to only call LSgetPrimalSolution
+# once for a model
+function getPrimalSolution(model)
     nVars = model.next_column - 1
-    padPrimal = Vector{Cdouble}(undef, nVars)
-    ret = LSgetPrimalSolution(model.ptr, padPrimal)
+    resize!(model.primal_values, nVars)
+    ret = LSgetPrimalSolution(model.ptr, model.primal_values)
     _check_ret(model, ret)
-    return padPrimal
+end
+
+function MOI.get(model::Optimizer, attr::MOI.VariablePrimal, i::MOI.VariableIndex)
+    if model.primal_retrived == false
+        getPrimalSolution(model)
+        model.primal_retrived = true
+    end
+    info = _info(model, i)
+    return model.primal_values[info.column]
 end
 
 #=================================================================================
@@ -543,6 +556,7 @@ MOI.supports(model::Optimizer, ::MOI.NumberOfThreads) = false
 MOI.supports(model::Optimizer, ::MOI.NumberOfVariables) = true
 MOI.supports(model::Optimizer, ::MOI.ObjectiveFunctionType) = true
 MOI.supports(model::Optimizer, ::MOI.TerminationStatus) = true
+MOI.supports(model::Optimizer, ::MOI.VariablePrimal, ::Type{MOI.VariableIndex}) = true
 # required setters
 
 
@@ -551,7 +565,7 @@ function MOI.set(model::Optimizer, ::MOI.Silent, flag::Bool)
     return
 end
 
-# required getters
+# required getterss
 function MOI.get(model::Optimizer, attr::MOI.TerminationStatus)
     model.lindoTerminationStatus == LS_STATUS_OPTIMAL && return MOI.OPTIMAL
     model.lindoTerminationStatus == LS_STATUS_BASIC_OPTIMAL && return MOI.OPTIMAL
