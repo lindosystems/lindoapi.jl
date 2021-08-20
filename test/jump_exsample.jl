@@ -11,6 +11,7 @@
 
 using Lindoapi
 using JuMP
+using Printf
 
 c = [1.0, 1.0, 1.0, 1.0]
 
