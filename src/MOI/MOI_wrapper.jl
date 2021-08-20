@@ -514,6 +514,7 @@ function MOI.get(model::Optimizer, attr::MOI.ObjectiveValue)
 end
 
 function MOI.get(model::Optimizer, attr::MOI.VariablePrimal)
+    @info("Variable Primal")
     nVars = model.next_column - 1
     padPrimal = Vector{Cdouble}(undef, nVars)
     ret = LSgetPrimalSolution(model.ptr, padPrimal)
@@ -543,6 +544,7 @@ MOI.supports(model::Optimizer, ::MOI.NumberOfThreads) = false
 MOI.supports(model::Optimizer, ::MOI.NumberOfVariables) = true
 MOI.supports(model::Optimizer, ::MOI.ObjectiveFunctionType) = true
 MOI.supports(model::Optimizer, ::MOI.TerminationStatus) = true
+MOI.supports(model::Optimizer, ::MOI.VariablePrimal, ::Type{MOI.VariableIndex}) = true
 # required setters
 
 
@@ -551,7 +553,7 @@ function MOI.set(model::Optimizer, ::MOI.Silent, flag::Bool)
     return
 end
 
-# required getters
+# required getterss
 function MOI.get(model::Optimizer, attr::MOI.TerminationStatus)
     model.lindoTerminationStatus == LS_STATUS_OPTIMAL && return MOI.OPTIMAL
     model.lindoTerminationStatus == LS_STATUS_BASIC_OPTIMAL && return MOI.OPTIMAL
