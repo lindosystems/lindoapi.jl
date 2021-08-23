@@ -626,3 +626,12 @@ function MOI.supports_constraint(
 }}
     return true
 end
+
+
+# NLP:
+# TODO
+# LSsetFuncalc
+# LSloadNLPData
+#
+
+# MOI.supports(::Optimizer, ::MOI.NLPBlock) = true
