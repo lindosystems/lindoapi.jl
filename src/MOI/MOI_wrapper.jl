@@ -142,6 +142,11 @@ The pointer is stored as a feild.
     #
     objective_function::_SUPPORTED_OBJECTIVE_FUNCTION
     #
+    # NLP
+    nlp_loaded::Bool
+    nlp_data::MOI.NLPBlockData
+    nlp_index_cons::Vector{Cint}
+    #
     objective_sense::MOI.OptimizationSense
     lindoTerminationStatus::Int
     # Use to track the next variable
@@ -495,6 +500,22 @@ function MOI.optimize!(model::Optimizer)
     dObjConst = 0.0
     pnLenCol = C_NULL
 
+    init_feat = Symbol[:ExprGraph]
+    MOI.initialize(model.nlp_data.evaluator, init_feat)
+    println(model.nlp_data.evaluator)
+
+    for i in 1:length(MOI.constraint_expr(model.nlp_data.evaluator, 1).args)
+        if typeof(MOI.constraint_expr(model.nlp_data.evaluator, 1).args[i]) == Expr
+            println((MOI.constraint_expr(model.nlp_data.evaluator, 1).args[i]).args[1])
+            println(((MOI.constraint_expr(model.nlp_data.evaluator, 1).args[i]).args[2]).args[1])
+            println(((MOI.constraint_expr(model.nlp_data.evaluator, 1).args[i]).args[2]).args[2])
+            println((((MOI.constraint_expr(model.nlp_data.evaluator, 1).args[i]).args[2]).args[3]).args[1])
+            println((((MOI.constraint_expr(model.nlp_data.evaluator, 1).args[i]).args[2]).args[3]).args[2])
+            println((((MOI.constraint_expr(model.nlp_data.evaluator, 1).args[i]).args[2]).args[3]).args[3])
+            println((MOI.constraint_expr(model.nlp_data.evaluator, 1).args[i]).args[3])
+
+        end
+    end
     ret = LSloadLPData(model.ptr ,nCons,nVars,nDir,
                                  dObjConst,adC,adB,acConTypes,nNZ,anBegCol,
                                  pnLenCol,adA,anRowX,pdLower,pdUpper)
@@ -630,8 +651,18 @@ end
 
 # NLP:
 # TODO
-# LSsetFuncalc
-# LSloadNLPData
+# LSsetFuncalc(pModel,cbFuncalc, uDict)
 #
+#
+# LSloadNLPData(pModel,Abegcol,Alencol, C_NULL,Arowndx,Nnlobj,Nobjndx, C_NULL)
+#
+#
+# LSloadLPData(pModel,nCons,nVars,nDir,
+#                     dObjConst,adC,adB,acConTypes,nNZ,Abegcol,
+#                    Alencol,Acoef,Arowndx,lb,ub)
 
-# MOI.supports(::Optimizer, ::MOI.NLPBlock) = true
+MOI.supports(::Optimizer, ::MOI.NLPBlock) = true
+
+function MOI.set(model::Optimizer, ::MOI.NLPBlock, nlp_data::MOI.NLPBlockData)
+    model.nlp_data = nlp_data
+end
