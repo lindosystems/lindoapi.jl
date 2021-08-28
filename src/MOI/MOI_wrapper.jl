@@ -471,6 +471,24 @@ function parse_variables(model::Optimizer)
     return pdLower, pdUpper
 end
 
+# for i in pos:length(expr)
+#     if typeof(MOI.constraint_expr(model.nlp_data.evaluator, 1).args[i]) == Expr
+#         println((MOI.constraint_expr(model.nlp_data.evaluator, 1).args[i]).args[1])
+#         println(((MOI.constraint_expr(model.nlp_data.evaluator, 1).args[i]).args[2]).args[1])
+#         println(((MOI.constraint_expr(model.nlp_data.evaluator, 1).args[i]).args[2]).args[2])
+#         println((((MOI.constraint_expr(model.nlp_data.evaluator, 1).args[i]).args[2]).args[3]).args[1])
+#         println((((MOI.constraint_expr(model.nlp_data.evaluator, 1).args[i]).args[2]).args[3]).args[2])
+#         println((((MOI.constraint_expr(model.nlp_data.evaluator, 1).args[i]).args[2]).args[3]).args[3])
+#         println((MOI.constraint_expr(model.nlp_data.evaluator, 1).args[i]).args[3])
+#     end
+# end
+
+
+
+function getPostOrder(list)
+
+end
+
 function MOI.optimize!(model::Optimizer)
     """
         This function will orginize that data and make the call
@@ -502,24 +520,16 @@ function MOI.optimize!(model::Optimizer)
 
     init_feat = Symbol[:ExprGraph]
     MOI.initialize(model.nlp_data.evaluator, init_feat)
-    println(model.nlp_data.evaluator)
-
-    for i in 1:length(MOI.constraint_expr(model.nlp_data.evaluator, 1).args)
-        if typeof(MOI.constraint_expr(model.nlp_data.evaluator, 1).args[i]) == Expr
-            println((MOI.constraint_expr(model.nlp_data.evaluator, 1).args[i]).args[1])
-            println(((MOI.constraint_expr(model.nlp_data.evaluator, 1).args[i]).args[2]).args[1])
-            println(((MOI.constraint_expr(model.nlp_data.evaluator, 1).args[i]).args[2]).args[2])
-            println((((MOI.constraint_expr(model.nlp_data.evaluator, 1).args[i]).args[2]).args[3]).args[1])
-            println((((MOI.constraint_expr(model.nlp_data.evaluator, 1).args[i]).args[2]).args[3]).args[2])
-            println((((MOI.constraint_expr(model.nlp_data.evaluator, 1).args[i]).args[2]).args[3]).args[3])
-            println((MOI.constraint_expr(model.nlp_data.evaluator, 1).args[i]).args[3])
-
-        end
-    end
+    instructionList = []
+    nodeLenList = []
+    instructionList, nodeLenList = get_pre_order(MOI.constraint_expr(model.nlp_data.evaluator, 1).args[2], instructionList, nodeLenList)
+    println(instructionList)
+    println(nodeLenList)
     ret = LSloadLPData(model.ptr ,nCons,nVars,nDir,
                                  dObjConst,adC,adB,acConTypes,nNZ,anBegCol,
                                  pnLenCol,adA,anRowX,pdLower,pdUpper)
     _check_ret(model, ret)
+
 
     pnStatus = Int32[-1]
     ret = LSoptimize(model.ptr, LS_METHOD_FREE, pnStatus)
@@ -666,3 +676,5 @@ MOI.supports(::Optimizer, ::MOI.NLPBlock) = true
 function MOI.set(model::Optimizer, ::MOI.NLPBlock, nlp_data::MOI.NLPBlockData)
     model.nlp_data = nlp_data
 end
+
+include("MOI_expression_tree.jl")
