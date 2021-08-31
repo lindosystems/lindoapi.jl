@@ -143,9 +143,8 @@ The pointer is stored as a feild.
     objective_function::_SUPPORTED_OBJECTIVE_FUNCTION
     #
     # NLP
-    nlp_loaded::Bool
     nlp_data::MOI.NLPBlockData
-    nlp_index_cons::Vector{Cint}
+    nlp_count::Int
     #
     objective_sense::MOI.OptimizationSense
     lindoTerminationStatus::Int
@@ -193,7 +192,7 @@ The pointer is stored as a feild.
         model.last_constraint_index = 0
         model.affine_constraint_info = Dict{Int,_ConstraintInfo}()
         model.nonzero_affine_coefs = 0
-
+        model.nlp_count = 0
         model.variable_info = CleverDicts.CleverDict{MOI.VariableIndex,_VariableInfo}(
             _HASH,
             _INVERSE_HASH,
@@ -471,24 +470,6 @@ function parse_variables(model::Optimizer)
     return pdLower, pdUpper
 end
 
-# for i in pos:length(expr)
-#     if typeof(MOI.constraint_expr(model.nlp_data.evaluator, 1).args[i]) == Expr
-#         println((MOI.constraint_expr(model.nlp_data.evaluator, 1).args[i]).args[1])
-#         println(((MOI.constraint_expr(model.nlp_data.evaluator, 1).args[i]).args[2]).args[1])
-#         println(((MOI.constraint_expr(model.nlp_data.evaluator, 1).args[i]).args[2]).args[2])
-#         println((((MOI.constraint_expr(model.nlp_data.evaluator, 1).args[i]).args[2]).args[3]).args[1])
-#         println((((MOI.constraint_expr(model.nlp_data.evaluator, 1).args[i]).args[2]).args[3]).args[2])
-#         println((((MOI.constraint_expr(model.nlp_data.evaluator, 1).args[i]).args[2]).args[3]).args[3])
-#         println((MOI.constraint_expr(model.nlp_data.evaluator, 1).args[i]).args[3])
-#     end
-# end
-
-
-
-function getPostOrder(list)
-
-end
-
 function MOI.optimize!(model::Optimizer)
     """
         This function will orginize that data and make the call
@@ -496,45 +477,72 @@ function MOI.optimize!(model::Optimizer)
     for proof of consept.
     """
 
-    pModel = model.ptr
-    nCons = model.next_row - 1
-    nVars = model.next_column - 1
-    dObjSense = _SENSE[model.objective_sense]
-    # println(nCons)
-    # println(nVars)
-    dObjConst, cols, adC = _parse_objective(model, model.objective_function)
-    # println(dObjConst)
-    # println(cols)
-    # println(adC)
-    acConTypes, adA, adB, anRowX, anBegCol = _parse_affine_constraints(model::Optimizer)
-    # println(acConTypes)
-    # println(adA)
-    # println(adB)
-    # println(anRowX)
-    # println(anBegCol)
-    pdLower, pdUpper = parse_variables(model::Optimizer)
-    nNZ = model.nonzero_affine_coefs
-    nDir = 1
-    dObjConst = 0.0
-    pnLenCol = C_NULL
+    # pModel = model.ptr
+    # nCons = model.next_row - 1
+    # nVars = model.next_column - 1
+    # dObjSense = _SENSE[model.objective_sense]
+    # # println(nCons)
+    # # println(nVars)
+    # dObjConst, cols, adC = _parse_objective(model, model.objective_function)
+    # # println(dObjConst)
+    # # println(cols)
+    # # println(adC)
+    # acConTypes, adA, adB, anRowX, anBegCol = _parse_affine_constraints(model::Optimizer)
+    # # println(acConTypes)
+    # # println(adA)
+    # # println(adB)
+    # # println(anRowX)
+    # # println(anBegCol)
+    # pdLower, pdUpper = parse_variables(model::Optimizer)
+    # nNZ = model.nonzero_affine_coefs
+    # nDir = 1
+    # dObjConst = 0.0
+    # pnLenCol = C_NULL
 
     init_feat = Symbol[:ExprGraph]
     MOI.initialize(model.nlp_data.evaluator, init_feat)
+
+    code = Vector{Cint}(undef, 200)
+    numval = Vector{Cdouble}(undef, 20)
+
+    # Where to add coefficients to Numval?
+    # Should code be generated in the loop after converions?
+    # How to keep all MOI neet
     instructionList = []
-    nodeLenList = []
-    instructionList, nodeLenList = get_pre_order(MOI.constraint_expr(model.nlp_data.evaluator, 1).args[2], instructionList, nodeLenList)
+    child_count_list = []
+
+    instructionList, child_count_list = get_pre_order(MOI.objective_expr(model.nlp_data.evaluator), instructionList, child_count_list)
+    instructionList = pre_to_post(instructionList,child_count_list)
+
     println(instructionList)
-    println(nodeLenList)
-    ret = LSloadLPData(model.ptr ,nCons,nVars,nDir,
-                                 dObjConst,adC,adB,acConTypes,nNZ,anBegCol,
-                                 pnLenCol,adA,anRowX,pdLower,pdUpper)
-    _check_ret(model, ret)
 
 
-    pnStatus = Int32[-1]
-    ret = LSoptimize(model.ptr, LS_METHOD_FREE, pnStatus)
-    model.lindoTerminationStatus = pnStatus[1]
-    _check_ret(model, ret)
+    for i in 1:length(model.nlp_data.constraint_bounds)
+
+        instructionList = []
+        child_count_list = []
+
+        instructionList, child_count_list = get_pre_order(MOI.constraint_expr(model.nlp_data.evaluator, i).args[2], instructionList, child_count_list)
+        instructionList = pre_to_post(instructionList,child_count_list)
+
+        println(MOI.constraint_expr(model.nlp_data.evaluator, i).args[1])
+        println(instructionList)
+        println(MOI.constraint_expr(model.nlp_data.evaluator, i).args[3])
+
+    end
+
+
+
+    # ret = LSloadLPData(model.ptr ,nCons,nVars,nDir,
+    #                              dObjConst,adC,adB,acConTypes,nNZ,anBegCol,
+    #                              pnLenCol,adA,anRowX,pdLower,pdUpper)
+    # _check_ret(model, ret)
+    #
+    #
+    # pnStatus = Int32[-1]
+    # ret = LSoptimize(model.ptr, LS_METHOD_FREE, pnStatus)
+    # model.lindoTerminationStatus = pnStatus[1]
+    # _check_ret(model, ret)
     return
 end
 
