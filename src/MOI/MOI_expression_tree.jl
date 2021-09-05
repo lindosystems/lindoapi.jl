@@ -10,13 +10,23 @@ function get_pre_order(expr::Expr, instructionList, child_count_list)
             push!(child_count_list , 0)
             push!(instructionList, expr.args[i])
         elseif typeof(expr.args[i]) == Symbol && typeof(expr.args[i]) != Expr
-            push!(child_count_list , length(expr.args) - 1)
-            push!(instructionList, expr.args[i])
+            # An operator can not have more then 2 childern
+            # If it has length(expr.args) - 1 = 3 it should be two repeted operators
+            child_count = length(expr.args) - 1
+            if  child_count <= 2
+                push!(child_count_list , child_count)
+                push!(instructionList, expr.args[i])
+            else
+                for k in 2:child_count
+                    push!(child_count_list , 2)
+                    push!(instructionList, expr.args[i])
+                end
+            end
         else
             get_pre_order(expr.args[i], instructionList, child_count_list )
         end
     end
-    return instructionList, child_count_list 
+    return instructionList, child_count_list
 end
 
 # Convert a pre-order list into a post order list
