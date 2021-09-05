@@ -1,40 +1,27 @@
-#  A Julia programming example of interfacing with LINDO API.
-#
-#  The problem:
-#
-#      Minimize x1 + x2 + x3 + x4
-#      s.t.
-#              3x1              + 2x4   = 20
-#                    6x2        + 9x4  >= 20
-#              4x1 + 5x2 + 8x3          = 40
-#                    7x2 + 1x3         >= 10
+#        minimize  f(x,y) =  3*(1-x)^2*exp(-(x^2) - (y+1)^2)
+#                         - 10*(x/5 - x^3 - y^5)*exp(-(x^2)-y^2)
+#                         - 1/3*exp(-((x+1)^2) - y^2);
+#        subject to
+#                         x^2 + y   <=  6;
+#                         x   + y^2 <=  6;
+#                         x, y unconstrained in sign;
+
 
 using Lindoapi
 using JuMP
 using Printf
 
-c = [1.0, 1.0, 1.0, 1.0]
-
-w1 = [3.0, 0.0, 0.0, 2.0]
-w2 = [0.0, 6.0, 0.0, 9.0]
-w3 = [4.0, 5.0, 8.0, 0.0]
-w4 = [0.0, 7.0, 1.0, 0.0]
-
-b1 = 20.0
-b2 = 20.0
-b3 = 40.0
-b4 = 10.0
 
 model = Model(Lindoapi.Optimizer)
-n = length(c)
+n = 2
 @variable(model, x[1:n])
 
-f_1 = @constraint(model, x'w1 == b1)
-f_2 = @constraint(model, x'w2 >= b2)
-f_3 = @constraint(model, x'w3 == b3)
-f_4 = @constraint(model, x'w4 >= b4)
-
-@objective(model, Min, x'c)
+@NLconstraint(model, x[1]^2 + x[2]   <=  6)
+@NLconstraint(model, x[1] + x[2]^2 <=  6)
+@NLobjective(model, Min,
+3*(1-x[1])^2 * exp( -1*(x[1]^2)) - 10*(x[1]/5 - x[1]^3 - x[2]^5)
+* exp(-1*(x[1]^2)-x[2]^2) - 1/3*exp(-1*((x[1]+1)^2) - x[2]^2)
+)
 
 optimize!(model)
 #
