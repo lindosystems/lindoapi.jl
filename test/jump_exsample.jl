@@ -1,3 +1,16 @@
+#   JuMP NLP Exsample
+#
+#   To download the API
+#   julia> using Pkg
+#   julia> Pkg.add(url="https://github.com/lindosystems/lindoapi.jl")
+#
+#   To Run
+#   julia> include("/PathToUse/jump_exsample.jl")
+#
+#   For more detail see
+#   https://github.com/lindosystems/lindoapi.jl
+#   https://jump.dev/JuMP.jl/stable/
+#
 #        minimize  f(x,y) =  3*(1-x)^2*exp(-(x^2) - (y+1)^2)
 #                         - 10*(x/5 - x^3 - y^5)*exp(-(x^2)-y^2)
 #                         - 1/3*exp(-((x+1)^2) - y^2);
@@ -31,10 +44,10 @@ objVal = objective_value(model)
     Printing out objective value and primal solution
 =#
 println()
-@printf "Objective is: %.5f \n" objVal
+@printf "Objective is: %.7f \n" objVal
 @printf "%s  %20s\n" "Index" "Primal Value"
 println(repeat('=', 30))
 for i in 1:n
-    @printf "%i %20.5f \n" i value(x[i])
+    @printf "%i %20.6f \n" i value(x[i])
 end
 println()
