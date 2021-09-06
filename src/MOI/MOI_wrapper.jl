@@ -116,6 +116,8 @@ The pointer is stored as a feild.
     #
     objective_function::_SUPPORTED_OBJECTIVE_FUNCTION
     #
+    loaded::Bool
+    #
     # NLP
     nlp_data::MOI.NLPBlockData
     nlp_count::Int
@@ -150,6 +152,7 @@ The pointer is stored as a feild.
         model.silent = false
         model.objective_type = _SCALAR_AFFINE
         model.objective_function = nothing
+        model.loaded = false
         model.objective_sense = MOI.MIN_SENSE
         model.lindoTerminationStatus = LS_STATUS_UNLOADED
         model.next_column = 1
@@ -205,6 +208,7 @@ function MOI.empty!(model::Optimizer)
     model.primal_retrived = false
     model.objective_type = _SCALAR_AFFINE
     model.objective_function = nothing
+    model.loaded = false
     model.objective_sense = MOI.MIN_SENSE
     empty!(model.variable_info)
 end
@@ -244,6 +248,14 @@ end
 
 function _add_to_expr_list(model::Optimizer,code, numval, ikod, ival, instructionList)
     for i in 1:length(instructionList)
+        # growing the size of code and numval by 50
+        # when space starts to run low
+        if ikod > length(code) + 4
+            resize!(code, 50)
+        end
+        if ival > length(numval) + 2
+            resize!(numval, 50)
+        end
         if typeof(instructionList[i]) == Cdouble
             code[ikod] = EP_PUSH_NUM;          ikod += 1;
             code[ikod] = ival - 1;             ikod += 1;
@@ -264,13 +276,8 @@ function _get_next_column(model::Optimizer)
     return model.next_column - 1
 end
 
-# Return the set objective function
-MOI.get(model::Optimizer, ::MOI.AbstractFunction) = model.objective_function
+function _parse(model::Optimizer)
 
-function MOI.optimize!(model::Optimizer)
-
-    init_feat = Symbol[:ExprGraph]
-    MOI.initialize(model.nlp_data.evaluator, init_feat)
     con_count = length(model.nlp_data.constraint_bounds)
     # initilze list with some memory
     code = Vector{Cint}(undef, 200)
@@ -329,6 +336,16 @@ function MOI.optimize!(model::Optimizer)
                  numval, varval, objs_beg, objs_length, cons_beg,
                  cons_length, lwrbnd, uprbnd)
     _check_ret(model, ret)
+end
+
+function MOI.optimize!(model::Optimizer)
+
+    if model.loaded == false
+        init_feat = Symbol[:ExprGraph]
+        MOI.initialize(model.nlp_data.evaluator, init_feat)
+        _parse(model)
+        model.loaded = true
+    end
     pnStatus = Int32[-1]
     ret = LSoptimize(model.ptr, LS_METHOD_FREE, pnStatus)
     model.lindoTerminationStatus = pnStatus[1]
@@ -388,6 +405,8 @@ MOI.supports(model::Optimizer, ::MOI.TerminationStatus) = true
 MOI.supports(model::Optimizer, ::MOI.VariablePrimal, ::Type{MOI.VariableIndex}) = true
 # required setters
 
+# Return the set objective function
+MOI.get(model::Optimizer, ::MOI.AbstractFunction) = model.objective_function
 
 function MOI.set(model::Optimizer, ::MOI.Silent, flag::Bool)
     model.silent = flag
