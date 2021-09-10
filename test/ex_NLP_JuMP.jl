@@ -37,6 +37,7 @@ n = 2
 )
 
 optimize!(model)
+
 #
 objVal = objective_value(model)
 

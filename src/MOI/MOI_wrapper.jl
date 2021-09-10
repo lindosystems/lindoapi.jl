@@ -116,9 +116,12 @@ The pointer is stored as a feild.
     #
     objective_function::_SUPPORTED_OBJECTIVE_FUNCTION
     #
+    loaded::Bool
+    #
     # NLP
     nlp_data::MOI.NLPBlockData
     nlp_count::Int
+    load_index::Int
     #
     objective_sense::MOI.OptimizationSense
     lindoTerminationStatus::Int
@@ -150,6 +153,8 @@ The pointer is stored as a feild.
         model.silent = false
         model.objective_type = _SCALAR_AFFINE
         model.objective_function = nothing
+        model.loaded = false
+        model.load_index = 0
         model.objective_sense = MOI.MIN_SENSE
         model.lindoTerminationStatus = LS_STATUS_UNLOADED
         model.next_column = 1
@@ -203,8 +208,10 @@ function MOI.empty!(model::Optimizer)
     model.name_to_variable = nothing
     model.primal_values = Vector{Cdouble}(undef,0)
     model.primal_retrived = false
+    model.load_index = 0
     model.objective_type = _SCALAR_AFFINE
     model.objective_function = nothing
+    model.loaded = false
     model.objective_sense = MOI.MIN_SENSE
     empty!(model.variable_info)
 end
@@ -242,8 +249,22 @@ function _info(model::Optimizer, key::MOI.VariableIndex)
     return error(MOI.InvalidIndex(key))
 end
 
+#=
+_add_to_expr_list takes an post order expresion and
+(1) adds it to a Lindo instruction list (code)
+(2) adds to the numval list that stores coefficents
+(3) updates cursors ikod and ival
+=#
 function _add_to_expr_list(model::Optimizer,code, numval, ikod, ival, instructionList)
     for i in 1:length(instructionList)
+        # growing the size of code and numval by 50
+        # when space starts to run low
+        if ikod > length(code) + 4
+            resize!(code, 50)
+        end
+        if ival > length(numval) + 2
+            resize!(numval, 50)
+        end
         if typeof(instructionList[i]) == Cdouble
             code[ikod] = EP_PUSH_NUM;          ikod += 1;
             code[ikod] = ival - 1;             ikod += 1;
@@ -264,13 +285,14 @@ function _get_next_column(model::Optimizer)
     return model.next_column - 1
 end
 
-# Return the set objective function
-MOI.get(model::Optimizer, ::MOI.AbstractFunction) = model.objective_function
 
-function MOI.optimize!(model::Optimizer)
-
-    init_feat = Symbol[:ExprGraph]
-    MOI.initialize(model.nlp_data.evaluator, init_feat)
+#=
+_parse takes the objective and constraints in the NLPBlock
+And builds the arguments for
+LSloadInstruct if the model has not been loaded
+LSaddInstruct if the model is being updated
+=#
+function _parse(model::Optimizer,load)
     con_count = length(model.nlp_data.constraint_bounds)
     # initilze list with some memory
     code = Vector{Cint}(undef, 200)
@@ -292,15 +314,20 @@ function MOI.optimize!(model::Optimizer)
     icon = 1
 
     # Add Objective to argument lists
-    instructionList = []
-    child_count_list = []
-    instructionList, child_count_list = get_pre_order(MOI.objective_expr(model.nlp_data.evaluator), instructionList, child_count_list)
-    instructionList = pre_to_post(instructionList,child_count_list)
-    code, numval, ikod, ival = _add_to_expr_list(model,code, numval, ikod, ival, instructionList)
-    objs_length[iobj] = ikod - (objs_beg[iobj]+1)
-    iobj += 1
+    if load
+        instructionList = []
+        child_count_list = []
+        instructionList, child_count_list = get_pre_order(MOI.objective_expr(model.nlp_data.evaluator), instructionList, child_count_list)
+        instructionList = pre_to_post(instructionList,child_count_list)
+        code, numval, ikod, ival = _add_to_expr_list(model, code, numval, ikod, ival, instructionList)
+        objs_length[iobj] = ikod - (objs_beg[iobj]+1)
+        iobj += 1
+    end
+
     # Add Constraints to argument lists
-    for i in 1:length(model.nlp_data.constraint_bounds)
+    # starting from the first to last unloaded constraint
+    println(model.load_index, "     ",length(model.nlp_data.constraint_bounds))
+    for i in (model.load_index+1):length(model.nlp_data.constraint_bounds)
         instructionList = []
         child_count_list = []
         instructionList, child_count_list = get_pre_order(MOI.constraint_expr(model.nlp_data.evaluator, i).args[2], instructionList, child_count_list)
@@ -319,16 +346,44 @@ function MOI.optimize!(model::Optimizer)
         varval[i] = 1.0
         vtype[i] = 'C'
     end
+    ncons = length(model.nlp_data.constraint_bounds) - model.load_index
+    model.load_index = length(model.nlp_data.constraint_bounds)
+    if load
+        nvars = model.next_column - 1
+        nobjs = 1
+        lsize = ikod - 1
+        ret = LSloadInstruct(model.ptr, ncons, nobjs, nvars, ival,
+                     objsense, ctype,  vtype, code, lsize, C_NULL,
+                     numval, varval, objs_beg, objs_length, cons_beg,
+                     cons_length, lwrbnd, uprbnd)
+        _check_ret(model, ret)
+    else
+        nvars = model.next_column - 1
+        nobjs = 0
+        lsize = ikod - 1
+        ret = LSaddInstruct(model.ptr, ncons, nobjs, nvars, ival,
+                     objsense, ctype,  vtype, code, lsize, C_NULL,
+                     numval, varval, objs_beg, objs_length, cons_beg,
+                     cons_length, lwrbnd, uprbnd)
+        _check_ret(model, ret)
+    end
+end
 
-    nvars = model.next_column - 1
-    ncons = length(model.nlp_data.constraint_bounds)
-    nobjs = 1
-    lsize = ikod - 1
-    ret = LSloadInstruct(model.ptr, ncons, nobjs, nvars, ival,
-                 objsense, ctype,  vtype, code, lsize, C_NULL,
-                 numval, varval, objs_beg, objs_length, cons_beg,
-                 cons_length, lwrbnd, uprbnd)
-    _check_ret(model, ret)
+function MOI.optimize!(model::Optimizer)
+
+    if model.loaded == false
+        init_feat = Symbol[:ExprGraph]
+        MOI.initialize(model.nlp_data.evaluator, init_feat)
+        _parse(model, true)
+        model.loaded = true
+    elseif length(model.nlp_data.constraint_bounds) > model.load_index          # Add more constraints
+        init_feat = Symbol[:ExprGraph]                                          # Init expresion graph access
+        MOI.initialize(model.nlp_data.evaluator, init_feat)
+        _parse(model, false)                                                    # Parse added constraints
+        model.primal_retrived = false                                           # Set primal retrived set to false
+    else                                                                        # to get the new primal variables
+        nothing
+    end
     pnStatus = Int32[-1]
     ret = LSoptimize(model.ptr, LS_METHOD_FREE, pnStatus)
     model.lindoTerminationStatus = pnStatus[1]
@@ -388,6 +443,8 @@ MOI.supports(model::Optimizer, ::MOI.TerminationStatus) = true
 MOI.supports(model::Optimizer, ::MOI.VariablePrimal, ::Type{MOI.VariableIndex}) = true
 # required setters
 
+# Return the set objective function
+MOI.get(model::Optimizer, ::MOI.AbstractFunction) = model.objective_function
 
 function MOI.set(model::Optimizer, ::MOI.Silent, flag::Bool)
     model.silent = flag
