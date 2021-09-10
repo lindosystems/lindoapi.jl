@@ -37,6 +37,25 @@ n = 2
 )
 
 optimize!(model)
+
+#
+objVal = objective_value(model)
+
+#=
+    Printing out objective value and primal solution
+=#
+println()
+@printf "Objective is: %.7f \n" objVal
+@printf "%s  %20s\n" "Index" "Primal Value"
+println(repeat('=', 30))
+for i in 1:n
+    @printf "%i %20.6f \n" i value(x[i])
+end
+println()
+
+@NLconstraint(model, x[1] + sin(x[2]) <=  1.5)
+
+optimize!(model)
 #
 objVal = objective_value(model)
 
