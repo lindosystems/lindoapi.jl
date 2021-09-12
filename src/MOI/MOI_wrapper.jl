@@ -294,12 +294,10 @@ end
 
  Param model: Of type Optimizer
 
+ TODO: Fill this function with test for each attibute to Optimizer object.
+       Curently not called by any implemented function.
 =#
 function MOI.is_empty(model::Optimizer)
-    """
-
-    """
-    model.objective_type != _SCALAR_AFFINE && return false
     !isone(model.next_column) && return false
     return true
 end
@@ -345,10 +343,19 @@ function _info(model::Optimizer, key::MOI.VariableIndex)
 end
 
 #=
-_add_to_expr_list takes an post order expresion and
-(1) adds it to a Lindo instruction list (code)
-(2) adds to the numval list that stores coefficents
-(3) updates cursors ikod and ival
+
+ Function: _add_to_expr_list
+ Breif: takes an post order expresion and
+        (1) adds it to a Lindo instruction list (code)
+        (2) adds to the numval list that stores coefficents
+        (3) updates cursors ikod and ival
+ Param model:
+ Param code: A Lindo instruction list that is beinf filled.
+ Param numval: A vector to hold coefficents being loaded into API model.
+ Param ikod: A cursor that holds the place of the next index to add to code vector.
+ Param ival: A cursor that holds the place of the nex coefficent to add to numval.
+ Param instructionList: A julia instruction list used to fill code and numval.
+
 =#
 function _add_to_expr_list(model::Optimizer,code, numval, ikod, ival, instructionList)
     for i in 1:length(instructionList)
@@ -375,6 +382,14 @@ function _add_to_expr_list(model::Optimizer,code, numval, ikod, ival, instructio
     return code, numval, ikod, ival
 end
 
+#=
+
+ Function _get_next_column:
+ Breif: This function is used to get the next_columnm and,
+        incrament the model attribute next_column.
+
+ Param model:
+=#
 function _get_next_column(model::Optimizer)
     model.next_column += 1
     return model.next_column - 1
@@ -473,6 +488,7 @@ end
 #=
 
  Function MOI.optimize!:
+
  Brief: Loads instructions to model then call LSoptimize
         updates model.lindoTerminationStatus
 
@@ -577,10 +593,12 @@ function Base.show(io::IO, model::Optimizer)
 end
 
 #=
+
  Function: MOI.supports
 
  Returns: True if the MOI wrapper Supports an attributes
           Flase if not.
+
 =#
 MOI.supports(model::Optimizer, ::MOI.SolverName) = true
 MOI.supports(model::Optimizer, ::MOI.RawSolver) = true
