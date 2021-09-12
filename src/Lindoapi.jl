@@ -1,3 +1,14 @@
+#=
+
+ File: Lindoapi.jl
+ Brief: The file that is executed when the package is loaded.
+        Includes all files needed to run the Lindo API in Julia
+
+ Authors: Pkg generate, James Haas, Mustafa Atlihan
+
+ Bugs:
+
+=#
 module Lindoapi
 
 # Load in `deps.jl`, complaining if it does not exist
@@ -6,7 +17,6 @@ if !isfile(depsjl_path)
     error("Faild to build")
 end
 include(depsjl_path)
-# Module initialization function
 
 using CEnum
 include("gen/liblindo_common.jl")
