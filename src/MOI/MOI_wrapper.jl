@@ -1,3 +1,16 @@
+#=
+
+ File: MOI_wrapper.jl
+ Brief: MathOptInterface NLP wraper for the LINDO API
+
+ Authors: James Haas,
+    MOI documenation:  https://jump.dev/MathOptInterface.jl/stable/
+    Insperation from:  https://github.com/jump-dev/Gurobi.jl
+                       https://github.com/jump-dev/Ipopt.jl
+
+ Bugs:
+
+=#
 import MathOptInterface
 
 const MOI = MathOptInterface
@@ -18,7 +31,6 @@ const _SENSE = Dict(
     MOI.MAX_SENSE => LS_MAX,)
 
 
-# @enum EnumName[::BaseType] value1[=x] value2[=y]
 @enum( _ObjectiveType,
     _SCALAR_AFFINE
 )
@@ -33,6 +45,20 @@ const _SENSE = Dict(
     _EQUAL_TO,
 )
 
+#=
+
+ mutable struct: _VariableInfo
+ Brief: A data type for storing variable data
+
+ Param index: A type-safe wrapper for Int64 for use in referencing variables in
+    a model. To allow for deletion, indices need not be consecutive.
+ Param column: The _get_next_column(model) value when inserted
+ Param bound: Attache bound type like >= <= // Not yet supported
+ Param lower_bound_bounded: Attach a lower bound to variable // Not yet supported
+ Param upper_bound_bounded: Attach an upper bound to variable // Not yet supported
+ Param name: Attach name to vatiable // Not yet supported
+
+=#
 mutable struct _VariableInfo
     index::MOI.VariableIndex
     column::Int
@@ -40,9 +66,17 @@ mutable struct _VariableInfo
     lower_bound_bounded::Float64
     upper_bound_bounded::Float64
     name::String
+    #=
 
+     Function: _VariableInfo
+     Brief: Constructor for the type _VariableInfo
+        non param data set to defulat values
+
+     Param index
+     Param column
+
+    =#
     function _VariableInfo(index::MOI.VariableIndex, column::Int)
-        # Construct a defulat variable
         variable_info = new(index, column)
         variable_info.index = index
         variable_info.column = column
@@ -54,23 +88,43 @@ mutable struct _VariableInfo
     end
 end
 
+#=
+
+ mutable struct: Env
+ Brief: A data type for storing Lindo
+
+ Param ptr: A pointer to Lindo enviroment.
+ Param key: A vector of char that contains an indviduals Lindo API license key.
+ Param finalize_called: A flag for determining if the enviroments deconstructor
+                        has been called.
+ Param attached_models: A integer to count the number of models attached
+                        to an enviroment.
+
+=#
 mutable struct Env
     ptr::Ptr{Cvoid}
     key::Vector{UInt8}
-    pn_error_code::Vector{Int32}
     finalize_called::Bool
     attached_models::Int
+    #=
+     Function: Env
+     Brief: a constructor and deconstructor for a Lindo API Enviroment
+        Takes no arguments initalizing an enviromet through API calls
+        and sets a finalize_called to false and attached_models to 0
 
+     API Call LSloadLicenseString: To get users license for enviroment constuctor
+     API Call LScreateEnv: Lindo API enviroment constructor
+     API Call LSdeleteEnv:  Lindo API enviroment deconstructor
+
+
+    =#
     function Env()
-        # pszFname
         fn = joinpath(PATH, "license/lndapi130.lic")
         key = Vector{UInt8}(undef, 1024)
-        # LSloadLicenseString(pszFname, pachLicense)
         ret = LSloadLicenseString(fn, key)
         if ret != 0
             error("Key not found check key $(license_path)")
         end
-        # ptr = LScreateEnv(pnErrorcode, pszPassword)
         pn_error_code = Int32[-1]
         ptr = LScreateEnv(pn_error_code, key)
         if pn_error_code[1] != 0
@@ -78,7 +132,7 @@ mutable struct Env
             exit(0)
         end
 
-        env = new(ptr, key, pn_error_code, false, 0)
+        env = new(ptr, key, false, 0)
 
         finalizer(env) do e
             e.finalize_called = true
@@ -97,40 +151,46 @@ end
 Base.cconvert(::Type{Ptr{Cvoid}}, x::Env) = x
 Base.unsafe_convert(::Type{Ptr{Cvoid}}, env::Env) = env.ptr::Ptr{Cvoid}
 
+#=
+ mutable struct Optimizer: A subtype of MOI.AbstractOptimizer
+ Brief: epresnets an instance of an optimization problem tied to the Lindo API.
+
+ Param env: Of type Nothing before creation and then Env (see mutable struct Env)
+ Pram ptr: Of type pLSmodel a Lindo data type to be model pointer argument
+            for API calls.
+Param loaded: A flag to determin if model instructions have been loaded.
+Prama nlp_data: A MOI struct that holds any nonliner objective or constraint
+Param load_index: Used as a cursor to the last nlp_data to be loaded into model
+Param objective_sense: To hold weater the model is to be Minimized or Maximized
+Param lindoTerminationStatus: Set LS_STATUS_UNLOADED be defult and udjusted once
+                            the MOI calls the Optimizer.
+Param next_column: Used to track how many variables have been added.
+Param primal_values: Hold the primal values retrived from
+                     an API call to LSgetPrimalSolution.
+ Param primal_retrived: A flag initilized to false and set to true after
+                        LSgetPrimalSolution has been called to avoid recalling.
+
+variable_info: Store model variable in type _VariableInfo in a CleverDict
+              'A smart storage type for managing sequential objects with
+               non-decreasing integer indices'
+
+ Pram silent: set to true TODO: Add False option to provide a verbose solver printout
+ Param objective_type: Curently just suppoting NLP instruction list TODO:
+ Param objective_function: Curently just suppoting NLP instruction list TODO:
+
+=#
 mutable struct Optimizer <: MOI.AbstractOptimizer
-"""
-    Represnets an instance of an optimization problem tied to the Lindo solver.
-This is typically a solvers's in memory represntation. In addition to ModelLike,
-AbstractOptimizer objects let you solve the model and query the solution.
-    Wrapping a solver in C will require the use of pointes, and memory management.
-The pointer is stored as a feild.
-"""
+
     env::Union{Nothing,Env}
     ptr::pLSmodel
-    # A flag to keep track of MOI.Silent
-    # An optimizer attribute for silencing the output of an optimizer.
-    silent::Bool
-    #
-    # An enum to remember what objective is currently stored in the model.
-    objective_type::_ObjectiveType
-    #
-    objective_function::_SUPPORTED_OBJECTIVE_FUNCTION
-    #
     loaded::Bool
-    #
-    # NLP
     nlp_data::MOI.NLPBlockData
-    nlp_count::Int
     load_index::Int
-    #
     objective_sense::MOI.OptimizationSense
     lindoTerminationStatus::Int
-    # Use to track the next variable
     next_column::Int
-    #
     primal_values::Vector{Cdouble}
     primal_retrived::Bool
-
     variable_info::CleverDicts.CleverDict{
         MOI.VariableIndex,
         _VariableInfo,
@@ -138,15 +198,23 @@ The pointer is stored as a feild.
         typeof(_INVERSE_HASH),
     }
 
-    name_to_variable::Union{
-        Nothing,
-        Dict{String, Union{Nothing, MOI.VariableIndex}},
-    }
-    enable_interrupts::Bool
+    #enable_interrupts::Bool
+    silent::Bool
+    objective_type::_ObjectiveType
+    objective_function::_SUPPORTED_OBJECTIVE_FUNCTION
 
-    function Optimizer(env::Union{Nothing, LSenv} = nothing,
-                       enable_interrupts::Bool = false,)
+    #=
 
+     Function: Optimizer
+     Brief: a constructor and deconstructor for a Optimizer type.
+            The finalizer is never called by a user directly, but is implemented
+            to tell julia how to remove the model.ptr and model.env that
+            have direct interaction with the Lindo API.
+
+     Param env: Optional if none is provided one will be created
+
+    =#
+    function Optimizer(env::Union{Nothing, LSenv} = nothing,)
         model = new()
         model.ptr = C_NULL
         model.env = env === nothing ? Env() : env
@@ -160,7 +228,6 @@ The pointer is stored as a feild.
         model.next_column = 1
         model.primal_values = Vector{Cdouble}(undef,0)
         model.primal_retrived = false
-        model.nlp_count = 0
         model.variable_info = CleverDicts.CleverDict{MOI.VariableIndex,_VariableInfo}(
             _HASH,
             _INVERSE_HASH,
@@ -188,6 +255,10 @@ Base.cconvert(::Type{Ptr{Cvoid}}, model::Optimizer) = model
 # implement Base.unsafe_convert
 Base.unsafe_convert(::Type{Ptr{Cvoid}}, model::Optimizer) = model.ptr
 
+#=
+ Function empty!:
+
+=#
 function MOI.empty!(model::Optimizer)
     """
         Empty the model
@@ -205,7 +276,6 @@ function MOI.empty!(model::Optimizer)
     _check_ret(model, ret[1])
     model.env.attached_models += 1
     model.next_column = 1
-    model.name_to_variable = nothing
     model.primal_values = Vector{Cdouble}(undef,0)
     model.primal_retrived = false
     model.load_index = 0
@@ -216,22 +286,33 @@ function MOI.empty!(model::Optimizer)
     empty!(model.variable_info)
 end
 
-function MOI.is_empty(model)
+#=
+
+ Function is_empty:
+ Breif: Returns false if the model has any variables, constraints,
+        and model attributes.
+
+ Param model: Of type Optimizer
+
+=#
+function MOI.is_empty(model::Optimizer)
     """
-        Returns false if the model has any
-        variables, constraints, and model attributes
+
     """
     model.objective_type != _SCALAR_AFFINE && return false
     !isone(model.next_column) && return false
     return true
 end
 
+#=
+ Function _check_ret:
+ Breif: Checks the return code from an API call throws an error and
+        and displays the error string.
+
+ Param model: Of type Optimizer
+ Param ret: A value returned from an API call if not 0 then there is an error.
+=#
 function _check_ret(model::Optimizer,ret::Int32)
-    """
-        Check for success after calling a C function
-    If the return value is 0 the function was success
-    Otherwise call LSgetErrorMessage to get the cause of error
-    """
     if ret != 0
         pachMessage = Vector{UInt8}(undef, 64)
         LSgetErrorMessage(model.env, ret, pachMessage)
@@ -241,10 +322,24 @@ function _check_ret(model::Optimizer,ret::Int32)
     return 0
 end
 
-# Short-cuts to return the _VariableInfo associated with an index.
+#=
+
+ Function: _info
+ Breif: When you have a VariableIndex and want to get the _VariableInfo type
+        stored at that location.
+
+ Para model: Of type Optimizer
+ Param key: Looks like this MathOptInterface.VariableIndex(i)
+
+ Return variable: If there is a _VariableInfo type stored at key
+                  it will be returned.
+ Else Return error message stating key parameter is not valid.
+
+=#
 function _info(model::Optimizer, key::MOI.VariableIndex)
     if haskey(model.variable_info, key)
-        return model.variable_info[key]
+        variable = model.variable_info[key]
+        return variable
     end
     return error(MOI.InvalidIndex(key))
 end
@@ -287,12 +382,21 @@ end
 
 
 #=
-_parse takes the objective and constraints in the NLPBlock
-And builds the arguments for
-LSloadInstruct if the model has not been loaded
-LSaddInstruct if the model is being updated
+ Function _parse:
+ Brief: takes the objective and constraints in the NLPBlock
+        And builds the arguments for
+        LSloadInstruct if the model has not been loaded
+        LSaddInstruct if the model is being updated.
+
+ Param model:
+ Param load: A flag that indicates if the model has been loaded
+
+ TODO: Change objsense = [LS_MIN] to Change objsense = [LS_MIN]
+ TODO: Fill lwrbnd[i], uprbnd[i], varval[i], vtype[i]
+       With values attached to variable.
+
 =#
-function _parse(model::Optimizer,load)
+function _parse(model::Optimizer,load::Bool)
     con_count = length(model.nlp_data.constraint_bounds)
     # initilze list with some memory
     code = Vector{Cint}(undef, 200)
@@ -301,7 +405,7 @@ function _parse(model::Optimizer,load)
     uprbnd = Vector{Cdouble}(undef, model.next_column - 1)
     varval = Vector{Cdouble}(undef, model.next_column - 1)
     vtype = Vector{Cchar}(undef, model.next_column - 1)
-    objsense = [LS_MIN] # TODO
+    objsense = [LS_MIN]
     objs_beg = [0]
     objs_length = Vector{Int32}(undef,1)
     ctype = Vector{Cchar}(undef, con_count)
@@ -326,7 +430,6 @@ function _parse(model::Optimizer,load)
 
     # Add Constraints to argument lists
     # starting from the first to last unloaded constraint
-    println(model.load_index, "     ",length(model.nlp_data.constraint_bounds))
     for i in (model.load_index+1):length(model.nlp_data.constraint_bounds)
         instructionList = []
         child_count_list = []
@@ -348,19 +451,17 @@ function _parse(model::Optimizer,load)
     end
     ncons = length(model.nlp_data.constraint_bounds) - model.load_index
     model.load_index = length(model.nlp_data.constraint_bounds)
+    nvars = model.next_column - 1
+    lsize = ikod - 1
     if load
-        nvars = model.next_column - 1
         nobjs = 1
-        lsize = ikod - 1
         ret = LSloadInstruct(model.ptr, ncons, nobjs, nvars, ival,
                      objsense, ctype,  vtype, code, lsize, C_NULL,
                      numval, varval, objs_beg, objs_length, cons_beg,
                      cons_length, lwrbnd, uprbnd)
         _check_ret(model, ret)
     else
-        nvars = model.next_column - 1
         nobjs = 0
-        lsize = ikod - 1
         ret = LSaddInstruct(model.ptr, ncons, nobjs, nvars, ival,
                      objsense, ctype,  vtype, code, lsize, C_NULL,
                      numval, varval, objs_beg, objs_length, cons_beg,
@@ -369,8 +470,14 @@ function _parse(model::Optimizer,load)
     end
 end
 
-function MOI.optimize!(model::Optimizer)
+#=
 
+ Function MOI.optimize!:
+ Brief: Loads instructions to model then call LSoptimize
+        updates model.lindoTerminationStatus
+
+=#
+function MOI.optimize!(model::Optimizer)
     if model.loaded == false
         init_feat = Symbol[:ExprGraph]
         MOI.initialize(model.nlp_data.evaluator, init_feat)
@@ -391,6 +498,18 @@ function MOI.optimize!(model::Optimizer)
     return
 end
 
+#=
+
+ Function MOI.get: // MOI.ObjectiveValue
+ Brief: Gets the objective value by calling LSgetInfo
+        errors handeled by _check_ret.
+
+ Param model:
+ Param attar: Sending MOI.SolverName() will let the MOI know what getter is being called.
+
+ Returns: the models objective value.
+
+=#
 function MOI.get(model::Optimizer, attr::MOI.ObjectiveValue)
     dObj = Cdouble[-1]
     ret = LSgetInfo(model.ptr, LS_DINFO_POBJ, dObj)
@@ -398,39 +517,71 @@ function MOI.get(model::Optimizer, attr::MOI.ObjectiveValue)
     return dObj[1]
 end
 
-# Since the Lindo API can only quary for
-# all primal solution this a seprate function
-# is written to only call LSgetPrimalSolution
-# once for a model
-function getPrimalSolution(model)
+
+#=
+
+ Function getPrimalSolution:
+ Breif: Since the Lindo API can only quary for
+        all primal solution this a seprate function
+        is written to only call LSgetPrimalSolution
+        once for a model. The values will be stored
+        in the model at model.primal_values
+
+ Param model:
+
+=#
+function _getPrimalSolution(model::Optimizer)
     nVars = model.next_column - 1
     resize!(model.primal_values, nVars)
     ret = LSgetPrimalSolution(model.ptr, model.primal_values)
     _check_ret(model, ret)
 end
 
-function MOI.get(model::Optimizer, attr::MOI.VariablePrimal, i::MOI.VariableIndex)
+#=
+
+ Function MOI.get // attr::MOI.VariablePrimal
+ Breif: gets the primal value of variable at given index.
+
+ Param model:
+ Param attr: This idicates what MOI.get function to call put MOI.VariablePrimal()
+             In as for argument when directly calling.
+ Param key: A MOI.VariableIndex that needs to be retrived
+
+=#
+function MOI.get(model::Optimizer, attr::MOI.VariablePrimal, key::MOI.VariableIndex)
+    # if there primal has not been saved to the model
     if model.primal_retrived == false
-        getPrimalSolution(model)
+        _getPrimalSolution(model)
         model.primal_retrived = true
     end
-    info = _info(model, i)
+    # to the index where the variable is stored
+    info = _info(model, key)
     return model.primal_values[info.column]
 end
 
-#=================================================================================
-==================================================================================#
+#=
+
+Function: Base.show
+Brief: Called bayed Julia when model is crated in REPL
+        or when the @show macro is used when model is crated.
+        Prints a nice string when model is printed.
+
+ Param io: Input Output Buffer
+ Param model:
+
+ Returns: The print statement.
+
+=#
 function Base.show(io::IO, model::Optimizer)
-    """
-        Prints a nice string when model is printed
-    """
     return println(io, "Lindo API with the pointer $(model.ptr)")
 end
-#=================================================================================
-Getters setters and Supports
-==================================================================================#
 
-# required supports
+#=
+ Function: MOI.supports
+
+ Returns: True if the MOI wrapper Supports an attributes
+          Flase if not.
+=#
 MOI.supports(model::Optimizer, ::MOI.SolverName) = true
 MOI.supports(model::Optimizer, ::MOI.RawSolver) = true
 MOI.supports(model::Optimizer, ::MOI.Name) = false
@@ -438,20 +589,54 @@ MOI.supports(model::Optimizer, ::MOI.Silent) = true
 MOI.supports(model::Optimizer, ::MOI.TimeLimitSec) = false
 MOI.supports(model::Optimizer, ::MOI.NumberOfThreads) = false
 MOI.supports(model::Optimizer, ::MOI.NumberOfVariables) = true
-MOI.supports(model::Optimizer, ::MOI.ObjectiveFunctionType) = true
 MOI.supports(model::Optimizer, ::MOI.TerminationStatus) = true
 MOI.supports(model::Optimizer, ::MOI.VariablePrimal, ::Type{MOI.VariableIndex}) = true
-# required setters
+MOI.supports(model::Optimizer, ::MOI.ObjectiveSense) = true
+MOI.supports(::Optimizer, ::MOI.NLPBlock) = true
 
 # Return the set objective function
 MOI.get(model::Optimizer, ::MOI.AbstractFunction) = model.objective_function
 
+#=
+
+ Function MOI.get: // MOI.Silent
+ Breif:
+
+ Param model:
+ Param : Sending MOI.Silent() will let the MOI know what getter is being called.
+
+=#
 function MOI.set(model::Optimizer, ::MOI.Silent, flag::Bool)
     model.silent = flag
     return
 end
 
-# required getterss
+#=
+
+ Function MOI.get: // MOI.Silent
+
+ Param model:
+ Param : Sending MOI.Silent() will let the MOI know what getter is being called.
+
+ Returns: The boolen value stored in model.silent
+
+=#
+function MOI.get(model::Optimizer, ::MOI.Silent)
+    return model.silent
+end
+
+#=
+
+ Function: MOI.get // MOI.TerminationStatus
+ Breif: Turns Lindo API model's termination status into an equivalent
+        MOI termination status and returns it.
+
+ Params model:
+ Param attr: If calling directly send MOI.TerminationStatus() as argument.
+
+ Returns: MOI tremination status.
+
+=#
 function MOI.get(model::Optimizer, attr::MOI.TerminationStatus)
     model.lindoTerminationStatus == LS_STATUS_OPTIMAL && return MOI.OPTIMAL
     model.lindoTerminationStatus == LS_STATUS_BASIC_OPTIMAL && return MOI.OPTIMAL
@@ -463,63 +648,92 @@ function MOI.get(model::Optimizer, attr::MOI.TerminationStatus)
     return MOI.OPTIMIZE_NOT_CALLED
 end
 
-function MOI.get(model::Optimizer, ::MOI.Silent)
-    return model.silent
-end
+#=
 
-"""Returns the name of the solver"""
+ Function MOI.get: // MOI.SolverName
+
+ Param model:
+ Param : Sending MOI.SolverName() will let the MOI know what getter is being called.
+
+ Returns: The string "Lindo".
+
+=#
 MOI.get(model::Optimizer, ::MOI.SolverName) = "Lindo"
 
-""" A model attribute for the object that may be used to access a solver-specific API for this optimizer. """
+#=
+
+ Function MOI.get: // MOI.RawSolver
+
+ Param model:
+ Param : Sending MOI.RawSolver() will let the MOI know what getter is being called.
+
+ Returns: The model pointer.
+
+=#
 MOI.get(model::Optimizer, ::MOI.RawSolver) = model.ptr
 
-"""  """
+#=
+
+ Function MOI.get: // MOI.NumberOfVariables
+
+ Param model:
+ Param : Sending MOI.NumberOfVariables() will let the MOI know what getter is being called.
+
+ Returns: The number of variables attached to model.
+
+=#
 MOI.get(model::Optimizer, ::MOI.NumberOfVariables) = length(model.variable_info)
 
-"""  """
-function MOI.get(model::Optimizer, ::MOI.ObjectiveFunctionType)
-    if model.objective_type == _SCALAR_AFFINE
-        return MOI.ScalarAffineFunction{Float64}
-    end
-    return nothing
-end
+#=
 
-# objective_sense::MOI.ObjectiveSense
-""" A model attribute for the objective sense of the objective function,
-which must be an OptimizationSense: MIN_SENSE, MAX_SENSE, or FEASIBILITY_SENSE.
-The default is FEASIBILITY_SENSE.
-"""
-MOI.supports(model::Optimizer, ::MOI.ObjectiveSense) = true # TODO: List off what sense it supports?
+ Function MOI.get: // MOI.ObjectiveSense
 
+ Param model:
+ Param : Sending MOI.ObjectiveSense() will let the MOI know what getter is being called.
+
+ Returns: The objective sense attached to the model.
+
+=#
 MOI.get(model::Optimizer, ::MOI.ObjectiveSense) = model.objective_sense
 
+#=
+
+ Function MOI.set: // MOI.ObjectiveSense
+
+ Param model:
+ Param : Sending MOI.ObjectiveSense() will let the MOI know what setter is being called.
+
+ Returns: The objective sense attached to the model.
+
+=#
 function MOI.set(model::Optimizer, ::MOI.ObjectiveSense, sense::MOI.OptimizationSense)
     model.objective_sense = sense
     return
 end
 
-function MOI.supports(model::Optimizer, ::MOI.ObjectiveFunction{F})where {F <: Union{MOI.ScalarAffineFunction{Float64}}} #TODO add more objective types
-    return true
-end
+#=
 
+ Function MOI.set: // MOI.NLPBlock
 
-# Compatible Constraints
+ Breif: Attaches the NLPBlock struct to the model
 
-function MOI.supports_constraint(
-    ::Optimizer, ::Type{MOI.ScalarAffineFunction{Float64}}, ::Type{F}
-) where {F <: Union{
-    MOI.EqualTo{Float64}, MOI.LessThan{Float64}, MOI.GreaterThan{Float64}
-}}
-    return true
-end
+ Param model:
+ Param : Sending MOI.NLPBlock() will let the MOI know what setter is being called.
+ Param nlp_data: The nlp_data to be attached to the model
 
-MOI.supports(::Optimizer, ::MOI.NLPBlock) = true
+ Returns: The objective sense attached to the model.
 
+=#
 function MOI.set(model::Optimizer, ::MOI.NLPBlock, nlp_data::MOI.NLPBlockData)
     model.nlp_data = nlp_data
 end
 
+#=
 
+ Detcahed MOI_wrapper related code
+ to make it more manageable
+
+=#
 include("MOI_expression_tree.jl")
 include("MOI_var.jl")
 include("supportedOperators.jl")
