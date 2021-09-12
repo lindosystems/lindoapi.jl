@@ -1,6 +1,30 @@
-# MathOptInterface :ExprGraph
+#=
 
-# Recursively travers a julia Expr that is stored in pre-order
+ File: MOI_expression_tree.jl
+ Brief: The functions in this file are used to convert
+      the expresion tree from the NLPBlock of type Expr to an
+      instruction list that is in post order for the Lindo API.
+
+ Authors: James Haas,
+
+ Bugs:
+
+=#
+
+#=
+
+ Function get_pre_order:
+ Breif: Recursivly traverses an expr of type Expr to get a
+       pre-order treversal of an expression tree.
+
+ Param expr: A expresion list from the NLPBlock.
+ Param instructionList: An empty list to hold the pre-order traversal.
+ Param child_count_list: An empty list to hold the number of childern each node has.
+      used for converting to post-order.
+
+ Return instructionList: 
+
+=#
 function get_pre_order(expr::Expr, instructionList, child_count_list)
     for i in 1:length(expr.args)
         if typeof(expr.args[i]) == Expr && typeof(expr.args[i].args[2]) == MathOptInterface.VariableIndex
@@ -39,6 +63,8 @@ end
 #
 # Output:
 # post_list: Converted from the pre-order traversal list
+
+
 function pre_to_post(pre_list, child_count_list)
     pre_stack = Vector{Any}(undef, length(pre_list))
     pop_count = Vector{Int8}(undef, length(pre_list))
