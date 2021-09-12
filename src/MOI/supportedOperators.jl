@@ -1,7 +1,13 @@
-#
-# Used to convert symbol type to
-# EP codes for the instruction list
-#
+#=
+
+ File: supportedOperators.jl
+ Brief: Used to convert symbol type to EP codes for the instruction list
+
+ Bugs:
+
+ TODO: There are more EP_XXX that could be added
+
+=#
 
 Sym_To_EP = Dict(
     :+ => EP_PLUS,
