@@ -420,7 +420,7 @@ function _parse(model::Optimizer,load::Bool)
     uprbnd = Vector{Cdouble}(undef, model.next_column - 1)
     varval = Vector{Cdouble}(undef, model.next_column - 1)
     vtype = Vector{Cchar}(undef, model.next_column - 1)
-    objsense = [LS_MIN]
+    objsense = [_get_Lindo_sense(model)]
     objs_beg = [0]
     objs_length = Vector{Int32}(undef,1)
     ctype = Vector{Cchar}(undef, con_count)
@@ -728,6 +728,18 @@ function MOI.set(model::Optimizer, ::MOI.ObjectiveSense, sense::MOI.Optimization
     model.objective_sense = sense
     return
 end
+
+#=
+
+ Function _get_Lindo_sense()
+
+ Param model:
+
+ Returns: The objective sense attached to model
+          converted into the proper Lindo flag
+
+=#
+_get_Lindo_sense(model::Optimizer) = _SENSE[model.objective_sense]
 
 #=
 
