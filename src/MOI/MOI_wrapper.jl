@@ -359,13 +359,14 @@ end
 =#
 function _add_to_expr_list(model::Optimizer,code, numval, ikod, ival, instructionList)
     for i in 1:length(instructionList)
-        # growing the size of code and numval by 50
         # when space starts to run low
-        if ikod > length(code) + 4
-            resize!(code, 50)
+        # double the length of the instruction
+        # vectors.
+        if ikod > length(code) - 1
+            code = resize!(code, length(code)*2)
         end
-        if ival > length(numval) + 2
-            resize!(numval, 50)
+        if ival > length(numval) - 1
+            numval = resize!(numval, length(numval)*2)
         end
         if typeof(instructionList[i]) == Cdouble
             code[ikod] = EP_PUSH_NUM;          ikod += 1;
