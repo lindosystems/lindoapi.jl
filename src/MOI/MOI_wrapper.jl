@@ -359,13 +359,14 @@ end
 =#
 function _add_to_expr_list(model::Optimizer,code, numval, ikod, ival, instructionList)
     for i in 1:length(instructionList)
-        # growing the size of code and numval by 50
         # when space starts to run low
-        if ikod > length(code) + 4
-            resize!(code, 50)
+        # double the length of the instruction
+        # vectors.
+        if ikod > length(code) - 1
+            code = resize!(code, length(code)*2)
         end
-        if ival > length(numval) + 2
-            resize!(numval, 50)
+        if ival > length(numval) - 1
+            numval = resize!(numval, length(numval)*2)
         end
         if typeof(instructionList[i]) == Cdouble
             code[ikod] = EP_PUSH_NUM;          ikod += 1;
@@ -420,7 +421,7 @@ function _parse(model::Optimizer,load::Bool)
     uprbnd = Vector{Cdouble}(undef, model.next_column - 1)
     varval = Vector{Cdouble}(undef, model.next_column - 1)
     vtype = Vector{Cchar}(undef, model.next_column - 1)
-    objsense = [LS_MIN]
+    objsense = [_get_Lindo_sense(model)]
     objs_beg = [0]
     objs_length = Vector{Int32}(undef,1)
     ctype = Vector{Cchar}(undef, con_count)
@@ -661,7 +662,7 @@ function MOI.get(model::Optimizer, attr::MOI.TerminationStatus)
     model.lindoTerminationStatus == LS_STATUS_INFEASIBLE && returnMOI.INFEASIBLE
     model.lindoTerminationStatus == LS_STATUS_LOCAL_OPTIMAL && return MOI.LOCALLY_SOLVED
     model.lindoTerminationStatus == LS_STATUS_LOCAL_INFEASIBLE && return MOI.LOCALLY_INFEASIBLE
-    model.lindoTerminationStatus == LS_STATUS_UNBOUNDED && return MOI.INFEASIBLE_OR_UNBOUNDED
+    model.lindoTerminationStatus == LS_STATUS_UNBOUNDED && return MOI.DUAL_INFEASIBLE
     model.lindoTerminationStatus == LS_STATUS_INFEASIBLE && return MOI.INFEASIBLE_OR_UNBOUNDED
     return MOI.OPTIMIZE_NOT_CALLED
 end
@@ -728,6 +729,18 @@ function MOI.set(model::Optimizer, ::MOI.ObjectiveSense, sense::MOI.Optimization
     model.objective_sense = sense
     return
 end
+
+#=
+
+ Function _get_Lindo_sense()
+
+ Param model:
+
+ Returns: The objective sense attached to model
+          converted into the proper Lindo flag
+
+=#
+_get_Lindo_sense(model::Optimizer) = _SENSE[model.objective_sense]
 
 #=
 
