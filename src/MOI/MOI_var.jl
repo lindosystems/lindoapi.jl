@@ -38,3 +38,32 @@ function MOI.add_variables(model::Optimizer, N::Int)
     end
     return indices
 end
+
+#=
+
+ Function  MOI.add_constraint
+ Brief: This MOI.add_constraint is used to make a variable
+        Binary or Integer
+
+ Exsample: Called by JuMP when @variable(model, x, Int) is used
+
+ Param model:
+ Param attar: Sending MOI.SolverName() will let the MOI know what getter is being called.
+
+ Returns: the models objective value.
+
+=#
+function MOI.add_constraint(model::Optimizer,
+    f::MOI.SingleVariable,
+    s::Set
+) where{Set <: Union{MOI.ZeroOne, MOI.Integer}}
+    model.use_LSsolveMIP = true
+    info = _info(model, f.variable)
+
+    if typeof(s) == MOI.ZeroOne
+        info.vtype = 'B'
+    else
+        info.vtype = 'I'
+    end
+    return MOI.ConstraintIndex{MOI.SingleVariable,typeof(s)}(f.variable.value)
+end

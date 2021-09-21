@@ -62,6 +62,7 @@ const _SENSE = Dict(
 mutable struct _VariableInfo
     index::MOI.VariableIndex
     column::Int
+    vtype::Char
     bound::_BoundType
     lower_bound_bounded::Float64
     upper_bound_bounded::Float64
@@ -80,8 +81,9 @@ mutable struct _VariableInfo
         variable_info = new(index, column)
         variable_info.index = index
         variable_info.column = column
+        variable_info.vtype = 'C'
         variable_info.bound = _NONE
-        variable_info.lower_bound_bounded = 0.0
+        variable_info.lower_bound_bounded = -typemax(Float64)
         variable_info.upper_bound_bounded = typemax(Float64)
         variable_info.name = ""
         return variable_info
@@ -158,19 +160,21 @@ Base.unsafe_convert(::Type{Ptr{Cvoid}}, env::Env) = env.ptr::Ptr{Cvoid}
  Param env: Of type Nothing before creation and then Env (see mutable struct Env)
  Pram ptr: Of type pLSmodel a Lindo data type to be model pointer argument
             for API calls.
-Param loaded: A flag to determin if model instructions have been loaded.
-Prama nlp_data: A MOI struct that holds any nonliner objective or constraint
-Param load_index: Used as a cursor to the last nlp_data to be loaded into model
-Param objective_sense: To hold weater the model is to be Minimized or Maximized
-Param lindoTerminationStatus: Set LS_STATUS_UNLOADED be defult and udjusted once
+ Param loaded: A flag to determin if model instructions have been loaded.
+ Param use_LSsolveMIP: A flag to determin weather or not to use LSsolveMIP()
+    set to true in MOI.add_constraint located in MOI_var.jl
+ Prama nlp_data: A MOI struct that holds any nonliner objective or constraint
+ Param load_index: Used as a cursor to the last nlp_data to be loaded into model
+ Param objective_sense: To hold weater the model is to be Minimized or Maximized
+ Param lindoTerminationStatus: Set LS_STATUS_UNLOADED be defult and udjusted once
                             the MOI calls the Optimizer.
-Param next_column: Used to track how many variables have been added.
-Param primal_values: Hold the primal values retrived from
+ Param next_column: Used to track how many variables have been added.
+ Param primal_values: Hold the primal values retrived from
                      an API call to LSgetPrimalSolution.
  Param primal_retrived: A flag initilized to false and set to true after
                         LSgetPrimalSolution has been called to avoid recalling.
 
-variable_info: Store model variable in type _VariableInfo in a CleverDict
+ variable_info: Store model variable in type _VariableInfo in a CleverDict
               'A smart storage type for managing sequential objects with
                non-decreasing integer indices'
 
@@ -184,6 +188,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     env::Union{Nothing,Env}
     ptr::pLSmodel
     loaded::Bool
+    use_LSsolveMIP::Bool
     nlp_data::MOI.NLPBlockData
     load_index::Int
     objective_sense::MOI.OptimizationSense
@@ -222,6 +227,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
         model.objective_type = _SCALAR_AFFINE
         model.objective_function = nothing
         model.loaded = false
+        model.use_LSsolveMIP = false
         model.load_index = 0
         model.objective_sense = MOI.MIN_SENSE
         model.lindoTerminationStatus = LS_STATUS_UNLOADED
@@ -282,6 +288,7 @@ function MOI.empty!(model::Optimizer)
     model.objective_type = _SCALAR_AFFINE
     model.objective_function = nothing
     model.loaded = false
+    model.use_LSsolveMIP = false
     model.objective_sense = MOI.MIN_SENSE
     empty!(model.variable_info)
 end
@@ -419,7 +426,7 @@ function _parse(model::Optimizer,load::Bool)
     numval = Vector{Cdouble}(undef, 30)
     lwrbnd = Vector{Cdouble}(undef, model.next_column - 1)
     uprbnd = Vector{Cdouble}(undef, model.next_column - 1)
-    varval = Vector{Cdouble}(undef, model.next_column - 1)
+    varval = Vector{Cdouble}(undef,  model.next_column - 1)
     vtype = Vector{Cchar}(undef, model.next_column - 1)
     objsense = [_get_Lindo_sense(model)]
     objs_beg = [0]
@@ -458,13 +465,13 @@ function _parse(model::Optimizer,load::Bool)
         icon += 1
     end
 
-    # dummy lists until ability to add to variables
-    for i in 1:(model.next_column - 1)
-        lwrbnd[i] = -1e30
-        uprbnd[i] = 1e30
-        varval[i] = 1.0
-        vtype[i] = 'C'
+    for (key, info) in model.variable_info
+        lwrbnd[info.column] = info.lower_bound_bounded
+        uprbnd[info.column] =info.upper_bound_bounded
+        varval[info.column] = 1.0
+        vtype[info.column] = info.vtype
     end
+
     ncons = length(model.nlp_data.constraint_bounds) - model.load_index
     model.load_index = length(model.nlp_data.constraint_bounds)
     nvars = model.next_column - 1
@@ -490,11 +497,13 @@ end
 
  Function MOI.optimize!:
 
- Brief: Loads instructions to model then call LSoptimize
+ Brief: Loads instructions to model then calls LSsolveMIP if there are any Bin or Int
+        variables otherwise LSoptimize
         updates model.lindoTerminationStatus
 
 =#
 function MOI.optimize!(model::Optimizer)
+
     if model.loaded == false
         init_feat = Symbol[:ExprGraph]
         MOI.initialize(model.nlp_data.evaluator, init_feat)
@@ -509,9 +518,13 @@ function MOI.optimize!(model::Optimizer)
         nothing
     end
     pnStatus = Int32[-1]
-    ret = LSoptimize(model.ptr, LS_METHOD_FREE, pnStatus)
-    model.lindoTerminationStatus = pnStatus[1]
+    if model.use_LSsolveMIP == true
+        ret = LSsolveMIP(model.ptr, pnStatus)
+    else
+        ret = LSoptimize(model.ptr, LS_METHOD_FREE, pnStatus)
+    end
     _check_ret(model, ret)
+    model.lindoTerminationStatus = pnStatus[1]
     return
 end
 
@@ -519,7 +532,8 @@ end
 
  Function MOI.get: // MOI.ObjectiveValue
  Brief: Gets the objective value by calling LSgetInfo
-        errors handeled by _check_ret.
+        errors handeled by _check_ret. The variable flag
+        is determined based on if the MIP solver was used or not.
 
  Param model:
  Param attar: Sending MOI.SolverName() will let the MOI know what getter is being called.
@@ -528,8 +542,12 @@ end
 
 =#
 function MOI.get(model::Optimizer, attr::MOI.ObjectiveValue)
+    flag = LS_DINFO_POBJ
+    if model.use_LSsolveMIP == true
+        flag = LS_DINFO_MIP_OBJ
+    end
     dObj = Cdouble[-1]
-    ret = LSgetInfo(model.ptr, LS_DINFO_POBJ, dObj)
+    ret = LSgetInfo(model.ptr, flag, dObj)
     _check_ret(model, ret)
     return dObj[1]
 end
@@ -540,7 +558,7 @@ end
  Function getPrimalSolution:
  Breif: Since the Lindo API can only quary for
         all primal solution this a seprate function
-        is written to only call LSgetPrimalSolution
+        is written to only call LSgetPrimalSolution (or LSgetMIPPrimalSolution if MIP )
         once for a model. The values will be stored
         in the model at model.primal_values
 
@@ -550,12 +568,17 @@ end
 function _getPrimalSolution(model::Optimizer)
     nVars = model.next_column - 1
     resize!(model.primal_values, nVars)
-    ret = LSgetPrimalSolution(model.ptr, model.primal_values)
+    if model.use_LSsolveMIP == true
+        ret = LSgetMIPPrimalSolution(model.ptr, model.primal_values)
+    else
+        ret = LSgetPrimalSolution(model.ptr, model.primal_values)
+    end
+
     _check_ret(model, ret)
 end
 
 #=
-
+LSgetMIPPrimalSolution( pModel, primal)
  Function MOI.get // attr::MOI.VariablePrimal
  Breif: gets the primal value of variable at given index.
 
@@ -613,6 +636,33 @@ MOI.supports(model::Optimizer, ::MOI.VariablePrimal, ::Type{MOI.VariableIndex}) 
 MOI.supports(model::Optimizer, ::MOI.ObjectiveSense) = true
 MOI.supports(::Optimizer, ::MOI.NLPBlock) = true
 
+
+#=
+
+ Function: MOI.supports_constraint
+
+ Breif: This funciton is called by the interface when a constraint on
+    a variable is added.
+
+Exsample: From JuMP @variable(model, x, Int) this will MOI.add_variables to
+        initilze variable then MOI.add_constraint to add the integer constraint
+
+ Returns: True if the MOI wrapper Supports a constraint
+          Flase if not.
+ TODO: Add MOI.LessThan{Float64},
+           MOI.GreaterThan{Float64},
+           MOI.Interval{Float64},
+=#
+function MOI.supports_constraint( ::Optimizer, ::Type{MOI.SingleVariable},
+    ::Type{F}) where {
+                F<:Union{
+                        MOI.ZeroOne,
+                        MOI.Integer
+                        }
+                      }
+    return true
+end
+
 # Return the set objective function
 MOI.get(model::Optimizer, ::MOI.AbstractFunction) = model.objective_function
 
@@ -659,7 +709,7 @@ end
 function MOI.get(model::Optimizer, attr::MOI.TerminationStatus)
     model.lindoTerminationStatus == LS_STATUS_OPTIMAL && return MOI.OPTIMAL
     model.lindoTerminationStatus == LS_STATUS_BASIC_OPTIMAL && return MOI.OPTIMAL
-    model.lindoTerminationStatus == LS_STATUS_INFEASIBLE && returnMOI.INFEASIBLE
+    model.lindoTerminationStatus == LS_STATUS_INFEASIBLE && return MOI.INFEASIBLE
     model.lindoTerminationStatus == LS_STATUS_LOCAL_OPTIMAL && return MOI.LOCALLY_SOLVED
     model.lindoTerminationStatus == LS_STATUS_LOCAL_INFEASIBLE && return MOI.LOCALLY_INFEASIBLE
     model.lindoTerminationStatus == LS_STATUS_UNBOUNDED && return MOI.DUAL_INFEASIBLE
