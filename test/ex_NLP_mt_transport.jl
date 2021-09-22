@@ -1,52 +1,164 @@
+"""
+Nonlinear Integer Programing Transportation Models
+
+Minimize:
+Total cost of transportation
+
+Subject to:
+Demand is at least met
+Supply can not be exseeded
+Flow from a Supply node to a Demand node must be positive
+
+Each model bellow will have a diffrent transportation cost function, and
+will share the same constraints.
+
+Model 1) Flat rate sum(x[i,j])
 
 
 
+
+
+
+
+
+
+"""
 
 
 using Lindoapi
 using JuMP
 using Printf
+using Base.Threads
 
-# initilze model
-model = Model(Lindoapi.Optimizer)
 
-n = 10
-m = 10
 
-source = [8 8 2 26 12 1 6 18 18 1.0]
-destination = [19 2 33 5 11 11 2 14 2 1.0]
-cost = [
-        15  3 23  1 19 14  6 16 41 33
-        13 17 30 36 20 17 26 19  3 33
-        37 17 30  5 48 27  8 25 36 21
-        13 13 31  7 35 11 29 41 34  3
-        31 24  8 30 28 33  2  8  1  8
-        32 36 12  9 18  1 44 49 11 11
-        49  6 17  0 42 45 22  9 10 47
-         2 21 18 40 47 27 27 49 19 42
-        13 16 25 21 19  0 32 20 32 35
-        23 42  2  0  9 30  5 29 31 29.0
+n = 3
+m = 5
+
+source = [10,12,15,18,16]
+sink = [25,26,20]
+
+
+#decline rate of shiping
+f = [
+     1 0.15 1.6
+     2 1.1 1.2
+     0.6 0.7 1
+     0.5 0.9 1.1
+     1 1.6 1
 ]
 
+# threshold
+g = [
+     4 2 3
+     5 2 2
+     2 2 3
+     2 3 2
+     5 3 4
+]
 
-@variable(model, x[1:n,1:m])
-for i in 1:n, j in 1:m
-        @NLconstraint(model, x[i,j] >= 0)
+a = [
+    1 1.5 1.6
+    2 1.1 1.2
+    0.6 0.7 1
+    0.5 0.9 1.1
+    1 1.6 1
+]
+b = [
+    30 27 28.5
+    36 28.8 39
+    24 27 25.5
+    23.4 33 30
+    36 31.5 33
+]
+
+function transport_model()
+
+        model = Model(Lindoapi.Optimizer)
+        @variable(model, x[1:m,1:n], Int)
+        for i in 1:m, j in 1:n
+                @NLconstraint(model, x[i,j] >= 0)
+        end
+
+        for i in 1:m
+                @NLconstraint(model, sum(x[i,j] for j in 1:n) >= source[i])
+        end
+
+        for j in 1:n
+                @NLconstraint(model, sum(x[i,j] for i in 1:m) <= sink[j])
+        end
+        return model, x
+
 end
 
-for i in 1:m
-        @NLconstraint(model, sum(x[i,j] for j in 1:n) >= source[i])
+function flat_rate()
+    model, x = transport_model()
+    @NLobjective(model, Min, sum( x[i,j] for i in 1:m, j in 1:n))
+    optimize!(model)
+    return model, x
 end
 
-for j in 1:n
-        @NLconstraint(model, sum(x[i,j] for i in 1:m) >= destination[j])
+function linear_rate_incress()
+        model, x = transport_model()
+        @NLobjective(model, Min,
+                     sum(x[i,j]*(b[i,j] + a[i,j]*x[i,j])
+                          for i in 1:m, j in 1:n
+                        )
+                      )
+        optimize!(model)
+        return model, x
 end
 
-@NLobjective(model, Min, sum(cost[i,j]*x[i,j]^2 for i in 1:n, j in 1:m))
+function linear_rate_break()
+        model, x = transport_model()
+        @NLobjective(model, Min, sum(
+                                     x[i,j]*(b[i,j] - a[i,j]*x[i,j])
+                                     for i in 1:m, j in 1:n
+                                     )
+                     )
+
+        optimize!(model)
+        return model, x
+end
+
+function exponetial_rate_incress()
+        #decline rate of shiping
+        model, x = transport_model()
+        @NLobjective(model, Min, sum(x[i,j]*exp(f[i,j]*(x[i,j]-g[i,j])) for i in 1:m, j in 1:n))
+        optimize!(model)
+        return model, x
+end
+
+function exponetial_rate_break()
+        model, x = transport_model()
+        @NLobjective(model, Min, sum(x[i,j]*exp(-1*f[i,j]*(x[i,j]-g[i,j])) for i in 1:m, j in 1:n))
+        optimize!(model)
+        return model, x
+end
 
 
-# Call the optimizer
-optimize!(model)
+model, x = flat_rate()
 
-# Quary objective value
-objVal = objective_value(model)
+models = [flat_rate(), linear_rate_incress(), linear_rate_break(), exponetial_rate_incress(), exponetial_rate_break()]
+
+@threads for i in 1:length(models)
+    models[i]
+end
+
+println("Model 1) flat rate")
+println("Model 2) linear rate incress")
+println("Model 3) linear rate break")
+println("Model 4) exponetial rate incress")
+println("Model 5) exponetial rate break")
+println("=====================================")
+println("Model   1    2    3    4    5")
+println("S->D")
+println("-------------------------------------")
+for i in 1:m, j in 1:n
+        @printf("%d->%d  |", i,j)
+        for k in 1:length(models)
+        @printf("%4d |", value((models[k][2])[i,j]))
+        end
+        print("\n-------------------------------------\n")
+end
+        println()
