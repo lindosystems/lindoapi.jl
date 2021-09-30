@@ -47,10 +47,13 @@ end
 
  Exsample: Called by JuMP when @variable(model, x, Int) is used
 
- Param model:
- Param attar: Sending MOI.SolverName() will let the MOI know what getter is being called.
+ Param model :
+ Param f     : Has the variable index that is needed to fetch the
+               variable constraint is being added to.
+ Param Set   : Can be MOI.ZeroOne or MOI.Integer and is used to avoid
+            wrtitng two funtions.
 
- Returns: the models objective value.
+ Returns: ConstraintIndex
 
 =#
 function MOI.add_constraint(model::Optimizer,
@@ -65,5 +68,37 @@ function MOI.add_constraint(model::Optimizer,
     else
         info.vtype = 'I'
     end
+    return MOI.ConstraintIndex{MOI.SingleVariable,typeof(s)}(f.variable.value)
+end
+
+#=
+
+ Function  MOI.add_constraint
+ Brief: This MOI.add_constraint is used to bound a variable
+
+ Exsample: Called by JuMP when @variable(model, x >= 0) is used
+
+ Param model :
+ Param f     : Has the variable index that is needed to fetch the
+               variable constraint is being added to.
+ Param Set   : Can be MOI.LessThan, MOI.GreaterThan or MOI.Interval
+               and is used to avoid wrtitng more then one funtions
+
+ Returns: ConstraintIndex
+=#
+function MOI.add_constraint(model::Optimizer,
+    f::MOI.SingleVariable,
+    s::Set
+) where{Set <: Union{MOI.LessThan{Float64},MOI.GreaterThan{Float64},MOI.Interval{Float64}}}
+    info = _info(model, f.variable)
+    if typeof(s) == MOI.LessThan{Float64}
+        info.upper_bound_bounded = s.upper
+    elseif typeof(s) == MOI.GreaterThan{Float64}
+        info.lower_bound_bounded = s.lower
+    else
+        info.lower_bound_bounded = s.lower
+        info.upper_bound_bounded = s.upper
+    end
+
     return MOI.ConstraintIndex{MOI.SingleVariable,typeof(s)}(f.variable.value)
 end
