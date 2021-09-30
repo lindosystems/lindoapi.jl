@@ -649,15 +649,15 @@ Exsample: From JuMP @variable(model, x, Int) this will MOI.add_variables to
 
  Returns: True if the MOI wrapper Supports a constraint
           Flase if not.
- TODO: Add MOI.LessThan{Float64},
-           MOI.GreaterThan{Float64},
-           MOI.Interval{Float64},
 =#
 function MOI.supports_constraint( ::Optimizer, ::Type{MOI.SingleVariable},
     ::Type{F}) where {
                 F<:Union{
                         MOI.ZeroOne,
-                        MOI.Integer
+                        MOI.Integer,
+                        MOI.LessThan{Float64},
+                        MOI.GreaterThan{Float64},
+                        MOI.Interval{Float64},
                         }
                       }
     return true
