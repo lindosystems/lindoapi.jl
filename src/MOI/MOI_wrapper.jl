@@ -163,6 +163,8 @@ Base.unsafe_convert(::Type{Ptr{Cvoid}}, env::Env) = env.ptr::Ptr{Cvoid}
  Param loaded: A flag to determin if model instructions have been loaded.
  Param use_LSsolveMIP: A flag to determin weather or not to use LSsolveMIP()
     set to true in MOI.add_constraint located in MOI_var.jl
+ Paran use_Global: A flag to toggle the Global solver on and off.
+    Can be set by MOI.set(model::Optimizer, raw::MOI.RawParameter, value)
  Prama nlp_data: A MOI struct that holds any nonliner objective or constraint
  Param load_index: Used as a cursor to the last nlp_data to be loaded into model
  Param objective_sense: To hold weater the model is to be Minimized or Maximized
@@ -189,6 +191,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     ptr::pLSmodel
     loaded::Bool
     use_LSsolveMIP::Bool
+    use_Global::Bool
     nlp_data::MOI.NLPBlockData
     load_index::Int
     objective_sense::MOI.OptimizationSense
@@ -228,6 +231,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
         model.objective_function = nothing
         model.loaded = false
         model.use_LSsolveMIP = false
+        model.use_Global = false
         model.load_index = 0
         model.objective_sense = MOI.MIN_SENSE
         model.lindoTerminationStatus = LS_STATUS_UNLOADED
@@ -289,6 +293,7 @@ function MOI.empty!(model::Optimizer)
     model.objective_function = nothing
     model.loaded = false
     model.use_LSsolveMIP = false
+    model.use_Global = false
     model.objective_sense = MOI.MIN_SENSE
     empty!(model.variable_info)
 end
@@ -518,7 +523,9 @@ function MOI.optimize!(model::Optimizer)
         nothing
     end
     pnStatus = Int32[-1]
-    if model.use_LSsolveMIP == true
+    if model.use_Global == true
+        ret = LSsolveMIP(model.ptr, pnStatus)
+    elseif model.use_LSsolveMIP == true
         ret = LSsolveMIP(model.ptr, pnStatus)
     else
         ret = LSoptimize(model.ptr, LS_METHOD_FREE, pnStatus)
@@ -551,7 +558,6 @@ function MOI.get(model::Optimizer, attr::MOI.ObjectiveValue)
     _check_ret(model, ret)
     return dObj[1]
 end
-
 
 #=
 
@@ -635,7 +641,7 @@ MOI.supports(model::Optimizer, ::MOI.TerminationStatus) = true
 MOI.supports(model::Optimizer, ::MOI.VariablePrimal, ::Type{MOI.VariableIndex}) = true
 MOI.supports(model::Optimizer, ::MOI.ObjectiveSense) = true
 MOI.supports(::Optimizer, ::MOI.NLPBlock) = true
-
+MOI.supports(::Optimizer, raw::MOI.RawParameter) = true
 
 #=
 
@@ -650,7 +656,6 @@ Exsample: From JuMP @variable(model, x, Int) this will MOI.add_variables to
  Returns: True if the MOI wrapper Supports a constraint
           Flase if not.
 =#
-function MOI.supports_constraint( ::Optimizer, ::Type{MOI.SingleVariable},
     ::Type{F}) where {
                 F<:Union{
                         MOI.ZeroOne,
@@ -662,6 +667,48 @@ function MOI.supports_constraint( ::Optimizer, ::Type{MOI.SingleVariable},
                       }
     return true
 end
+
+#=
+
+ Function: MOI.get // MOI.RawParameter
+
+ Breif: This funciton is used to get model.use_Global a Boolen value
+
+ Exsample: From JuMP get_optimizer_attribute(model,"use_Global")
+
+ Returns: model.use_Global if raw.name == "use_Global"
+          false otherwise
+
+=#
+function MOI.get(model::Optimizer, raw::MOI.RawParameter)
+    if raw.name == "use_Global"
+        return model.use_Global
+    end
+    println("$(raw.name): Not supported")
+    return false
+end
+
+#=
+
+ Function: MOI.set // MOI.RawParameter
+
+ Breif: This funciton is used to set model.use_Global to true or false
+
+ Exsample: From JuMP set_optimizer_attribute(model,"use_Global",true)
+
+ Returns: nothing
+
+=#
+function MOI.set(model::Optimizer, raw::MOI.RawParameter, value)
+    if raw.name == "use_Global"
+        model.use_Global = value
+        return
+    end
+    println("$(raw.name): Not supported")
+    return
+end
+
+
 
 # Return the set objective function
 MOI.get(model::Optimizer, ::MOI.AbstractFunction) = model.objective_function
@@ -739,7 +786,6 @@ MOI.get(model::Optimizer, ::MOI.SolverName) = "Lindo"
  Returns: The model pointer.
 
 =#
-MOI.get(model::Optimizer, ::MOI.RawSolver) = model.ptr
 
 #=
 
