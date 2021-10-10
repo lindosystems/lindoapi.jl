@@ -1,33 +1,6 @@
 # Julia wrapper for header: lindo.h
 # Automatically generated using Clang.jl
 
-function check_error(pEnv, ErrorCode)
-    if ErrorCode != 0
-        pachMessage = Vector{UInt8}(undef,1024)
-        LSgetErrorMessage(pEnv, ErrorCode, pachMessage)
-        cast_pachMessage = unsafe_string(pointer(pachMessage))
-        error("Error --> $(cast_pachMessage)")
-    else
-        nothing
-    end
-    return
-end
-
-function addToUdata(key::Union{pLSmodel, pLSenv})
-    if isUdata(key) == false
-        udata_Dict[key] = jlLindoData_t()
-    end
-end
-
-function isUdata(key::Union{pLSmodel, pLSenv})
-    ret = getkey(udata_Dict, key, -1)
-    if ret == -1
-        return false
-    else
-        return true
-    end
-end
-
 function LScreateEnv(pnErrorcode, pszPassword)
     ccall((:LScreateEnv, liblindo), pLSenv, (Ptr{Cint}, Ptr{Cchar}), pnErrorcode, pszPassword)
 end
@@ -995,31 +968,7 @@ end
 function LSsetCallback(pModel, pfCallback, pvCbData)
     ccall((:LSsetCallback, liblindo), Cint, (pLSmodel, cbFunc_t, Ptr{Cvoid}), pModel, pfCallback, pvCbData)
 end
-##
-function relayMIPCallback(pModel, uData, dObj, padPrimal)
-    # get number of variales
-    nVar = [0]
-    LSgetInfo(pModel, LS_IINFO_NUM_VARS, nVar)
-    if nVar[1] == 0
-        return 0
-    end
-    # marshall the C data to julia
-    jl_padPrimal = Vector{Cdouble}(undef, nVar[1])
-    for i in 1:nVar[1]
-        jl_padPrimal[i] = unsafe_load(padPrimal,i)
-    end
-    uData._cbMIPFunc(pModel, uData._cbData, dObj, jl_padPrimal)
-    return Int32(0)
-end
 
-function LSsetMIPCallback(pModel, pfMIPCallback, pvCbData)
-    addToUdata(pModel)
-    udata_Dict[pModel]._cbData = pvCbData
-    udata_Dict[pModel]._cbMIPFunc = pfMIPCallback
-    relayMIPCallback_c = @cfunction(relayMIPCallback, Cint, (pLSmodel, Ref{jlLindoData_t}, Cdouble, Ptr{Cdouble}))
-    ccall((:LSsetMIPCallback, liblindo), Cint, (pLSmodel, cbFunc_t, Ref{jlLindoData_t}), pModel, relayMIPCallback_c, udata_Dict[pModel])
-end
-##
 function LSsetMIPCCStrategy(pModel, pfStrategy, nRunId, szParamFile, pvCbData)
     ccall((:LSsetMIPCCStrategy, liblindo), Cint, (pLSmodel, cbStrategy_t, Cint, Ptr{Cchar}, Ptr{Cvoid}), pModel, pfStrategy, nRunId, szParamFile, pvCbData)
 end
@@ -1043,107 +992,6 @@ end
 function LSgetProgressInfo(pModel, nLocation, nQuery, pvValue)
     ccall((:LSgetProgressInfo, liblindo), Cint, (pLSmodel, Cint, Cint, Ptr{Cvoid}), pModel, nLocation, nQuery, pvValue)
 end
-
-##
-
-function relayGradcalc(pModel, uData, nRow, padPrimal, lb, ub, isNewPoint, nNPar, pnParList, pdPartial)
-# get number of variales
-
-    nVar = [0]
-    LSgetInfo(pModel, LS_IINFO_NUM_VARS, nVar)
-    if nVar[1] == 0
-        return 0
-    end
-    # marshall the C data to julia
-    jl_padPrimal = Vector{Cdouble}(undef, nVar[1])
-    jl_pnParList = Vector{Cint}(undef, nVar[1])
-    jl_lb = Vector{Cdouble}(undef, nVar[1])
-    jl_ub = Vector{Cdouble}(undef, nVar[1])
-    jl_pdPartial = Vector{Cdouble}(undef, nVar[1])
-    for i in 1:nVar[1]
-        jl_padPrimal[i] = unsafe_load(padPrimal,i)
-        jl_pnParList[i] = unsafe_load(pnParList,i)
-        jl_lb[i] = unsafe_load(lb,i)
-        jl_ub[i] = unsafe_load(ub,i)
-        jl_pdPartial[i] = unsafe_load(pdPartial,i)
-    end
-    uData._gradCalcFunc(pModel, uData._cbData, nRow, jl_padPrimal, jl_lb, jl_ub, isNewPoint, nNPar, jl_pnParList, jl_pdPartial)
-    # marshall data from julia to C
-    unsafe_store!(pdPartial, jl_pdPartial[1])
-
-    return Int32(0)
-end
-
-function LSsetGradcalc(pModel, pfGrad_func, pvUserData, nLenUseGrad, pnUseGrad)
-    addToUdata(pModel)
-    udata_Dict[pModel]._cbData = pvUserData
-    udata_Dict[pModel]._gradCalcFunc = pfGrad_func
-    relayGradcalc_c = @cfunction(relayGradcalc, Cint, (pLSmodel, Ref{jlLindoData_t}, Cint, Ptr{Cdouble}, Ptr{Cdouble}, Ptr{Cdouble}, Cint, Cint, Ptr{Cint}, Ptr{Cdouble}))
-    ccall((:LSsetGradcalc, liblindo), Cint, (pLSmodel, Gradcalc_type, Ref{jlLindoData_t}, Cint, Ptr{Cint}), pModel, relayGradcalc_c, udata_Dict[pModel], nLenUseGrad, pnUseGrad)
-end
-
-##
-
-function relayFuncalc(pModel, udata, nRow, padPrimal, nJdiff, dxJBase, funcVal, reserved)
-    # get number of variales
-    nVar = [0]
-    LSgetInfo(pModel, LS_IINFO_NUM_VARS, nVar)
-    if nVar[1] == 0
-        return 0
-    end
-    # marshall the C data to julia
-    jl_funcval = unsafe_load(funcVal)
-    jl_padPrimal = Vector{Cdouble}(undef, nVar[1])
-    for i in 1:nVar[1]
-        jl_padPrimal[i] = unsafe_load(padPrimal,i)
-    end
-    jl_funcval =  udata._funCalcFunc(pModel, udata._cbData, nRow, jl_padPrimal, nJdiff, dxJBase, funcVal ,  reserved)
-    # marshall the julia data to C
-    unsafe_store!(funcVal, jl_funcval)
-    return Int32(0)
-end
-
-function LSsetFuncalc(pModel, pfFunc, pvFData)
-    addToUdata(pModel)
-    udata_Dict[pModel]._cbData = pvFData
-    udata_Dict[pModel]._funCalcFunc = pfFunc
-    relayFuncalc_c = @cfunction(relayFuncalc, Cint, (pLSmodel,  Ref{jlLindoData_t} ,Cint, Ptr{Cdouble}, Cint, Cdouble, Ptr{Cdouble}, Ptr{Cvoid}))
-    ccall((:LSsetFuncalc, liblindo), Cint, (pLSmodel, Funcalc_type, Ref{jlLindoData_t}), pModel, relayFuncalc_c, udata_Dict[pModel])
-end
-
-##
-function relayEnvLogfunc(pEnv, line, udata)
-    jlLine = unsafe_string(line)
-    udata._cbEnvLogFunc(pEnv, jlLine, udata._cbData)
-    return Int32(0)
-end
-
-function LSsetEnvLogfunc(pEnv, pfLocFunc, pvPrData)
-    addToUdata(pEnv)
-    udata_Dict[pEnv]._cbData = pvPrData
-    udata_Dict[pEnv]._cbEnvLogFunc = pfLocFunc
-    relayEnvLogfunc_c = @cfunction(relayEnvLogfunc, Cint, (pLSenv, Ptr{Cchar}, Ref{jlLindoData_t}))
-    ccall((:LSsetEnvLogfunc, liblindo), Cint, (pLSenv, printEnvLOG_t, Ref{jlLindoData_t}), pEnv, relayEnvLogfunc_c, udata_Dict[pEnv])
-end
-
-##
-
-function relayModelLogfunc(pModel, line, udata)
-    jlLine = unsafe_string(line)
-    udata._cbModelLogFunc(pModel, jlLine, udata._cbData)
-    return Int32(0)
-end
-
-function LSsetModelLogfunc(pModel, pfLogFunc, pvPrData)
-    addToUdata(pModel)
-    udata_Dict[pModel]._cbData = pvPrData
-    udata_Dict[pModel]._cbModelLogFunc = pfLogFunc
-    relayModelLogfunc_c = @cfunction(relayModelLogfunc, Cint, (pLSmodel, Ptr{Cchar}, Ref{jlLindoData_t}))
-    ccall((:LSsetModelLogfunc, liblindo),
-     Cint, (pLSmodel, printModelLOG_t, Ref{jlLindoData_t}), pModel, relayModelLogfunc_c, udata_Dict[pModel])
-end
-
-##
 
 function LSsetUsercalc(pModel, pfUser_func, pvUserData)
     ccall((:LSsetUsercalc, liblindo), Cint, (pLSmodel, user_callback_t, Ptr{Cvoid}), pModel, pfUser_func, pvUserData)

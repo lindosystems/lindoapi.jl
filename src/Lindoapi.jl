@@ -21,6 +21,7 @@ include(depsjl_path)
 using CEnum
 include("gen/liblindo_common.jl")
 include("gen/liblindo_api.jl")
+include("gen/liblindo_api_callback.jl")
 include("gen/ctypes.jl")
 include("MOI/MOI_wrapper.jl")
 
