@@ -656,6 +656,7 @@ Exsample: From JuMP @variable(model, x, Int) this will MOI.add_variables to
  Returns: True if the MOI wrapper Supports a constraint
           Flase if not.
 =#
+function MOI.supports_constraint( ::Optimizer, ::Type{MOI.SingleVariable},
     ::Type{F}) where {
                 F<:Union{
                         MOI.ZeroOne,
