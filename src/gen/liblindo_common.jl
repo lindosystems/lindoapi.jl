@@ -4,7 +4,6 @@
 #########################################
 const LSgetVarType = Cchar
 const LSloadVarType = Ptr{Cchar}
-#const LSsetModelLogfunc = Ptr{Cvoid}
 const LSsetModelParameter = Ptr{Cvoid}
 const LSgetModelParameter = Ptr{Cvoid}
 const LSsetModelIntParameter = Ptr{Cint}
@@ -2132,20 +2131,3 @@ const LSloadMIPVarStartPoint_solver_callback_t = Ptr{Cvoid}
 const LSlogmod_t = Ptr{Cvoid}
 const LSlogenv_t = Ptr{Cvoid}
 const UserPdf_t = Ptr{Cvoid}
-
-
-# maintains user defined julia objects
-mutable struct jlLindoData_t
-    _cbMIPFunc::Union{Nothing, Function}
-    _cbModelLogFunc::Union{Nothing, Function}
-    _cbEnvLogFunc::Union{Nothing, Function}
-    _funCalcFunc::Union{Nothing, Function}
-    _gradCalcFunc::Union{Nothing, Function}
-    _cbData::Union{Nothing, Dict{String, String}}
-    function jlLindoData_t()
-        return new(nothing,nothing,
-        nothing,nothing,nothing)
-    end
-end
-
-udata_Dict = Dict{Union{pLSmodel, pLSenv}, jlLindoData_t}()
