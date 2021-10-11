@@ -40,12 +40,13 @@ optimize!(model)
 
 #
 objVal = objective_value(model)
-
+dualObjVal = dual_objective_value(model)
 #=
     Printing out objective value and primal solution
 =#
 println()
-@printf "Objective is: %.7f \n" objVal
+@printf "Objective Value :  %.7f \n" objVal
+@printf "Dual Value      :  %.7f \n\n" dualObjVal
 @printf "%s  %20s\n" "Index" "Primal Value"
 println(repeat('=', 30))
 for i in 1:n
