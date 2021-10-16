@@ -37,7 +37,14 @@ function get_pre_order(expr::Expr, instructionList, child_count_list)
             # An operator can not have more then 2 childern
             # If it has length(expr.args) - 1 = 3 it should be two repeted operators
             child_count = length(expr.args) - 1
-            if  child_count <= 2
+            if child_count == 1 && expr.args[i] == :-
+                # if -x then change to * -1 x
+
+                push!(child_count_list , 2)
+                push!(instructionList, :*)
+                push!(child_count_list , 0)
+                push!(instructionList, -1.0)
+            elseif child_count <= 2
                 push!(child_count_list , child_count)
                 push!(instructionList, expr.args[i])
             else
