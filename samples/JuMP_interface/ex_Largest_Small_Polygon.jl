@@ -17,6 +17,10 @@ Subject to
 User inputs:
 n_v: Number of vertices of polygon.
 
+
+To run sample
+    include("/PathToUse/ex_Largest_Small_Polygon.jl")
+
 To update to the most current version of Lindoapi.jl
 Run in REPL:
     using Pkg
@@ -72,7 +76,7 @@ model = Model( Lindoapi.Optimizer)
 optimize!(model)
 
 # Get area of n-polygon
-objVal = objective_value(model)
+objVal = objective_value(model, result=1)
 
 # use a `.` to apply an operation
 # getting variables from solved

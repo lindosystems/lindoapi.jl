@@ -4,6 +4,9 @@ Lindoapi JuMP Interface multiple model example.
 
 Nonlinear Integer Programing Transportation Models
 
+
+Problem Statement:
+
 Minimize:
 Total cost of transportation
 
@@ -42,6 +45,24 @@ Model 5) exponential rate break ``c_{i,j} = exp{-f_{i,j}(x_{i,j} - g_{i,j})}``
         In this model as shipping cost decreases exponentially when
         shipping to from supply node i to demand node j exceeds the
         threshold g_{i,j}.
+
+
+To run sample:
+        include("/PathToUse/ex_mt_Transport.jl")
+
+To update to the most current version of Lindoapi.jl
+Run in REPL:
+    using Pkg
+    Pkg.add(url="https://github.com/lindosystems/lindoapi.jl")
+
+This sample also uses the libraries Printf and Plots
+both are not added as dependencies when installing Lindoapi.jl
+If not installed yet
+Run in REPL:
+    using Pkg
+    Pkg.add("Plots")
+    Pkg.add("Printf")
+
 """
 
 using Lindoapi
@@ -156,7 +177,7 @@ end
 
 function exponetial_rate_break()
         model, x = transport_model()
-        @NLobjective(model, Min, sum(x[i,j]*exp(-1*f[i,j]*(x[i,j]-g[i,j]))
+        @NLobjective(model, Min, sum(x[i,j]*exp(-f[i,j]*(x[i,j]-g[i,j]))
                                      for i in 1:m, j in 1:n))
         optimize!(model)
         return model, x
