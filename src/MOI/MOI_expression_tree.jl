@@ -22,7 +22,7 @@
  Param child_count_list: An empty list to hold the number of childern each node has.
       used for converting to post-order.
 
- Return instructionList: 
+ Return instructionList:
 
 =#
 function get_pre_order(expr::Expr, instructionList, child_count_list)
