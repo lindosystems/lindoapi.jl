@@ -19,6 +19,7 @@
 # maintains user defined julia objects
 mutable struct jlLindoData_t
     _cbMIPFunc::Union{Nothing, Function}
+    _cbGOPFunc::Union{Nothing, Function}
     _cbModelLogFunc::Union{Nothing, Function}
     _cbEnvLogFunc::Union{Nothing, Function}
     _funCalcFunc::Union{Nothing, Function}
@@ -31,7 +32,7 @@ mutable struct jlLindoData_t
 =#
     function jlLindoData_t()
         return new(nothing,nothing,
-        nothing,nothing,nothing)
+        nothing,nothing,nothing,nothing)
     end
 end
 
@@ -120,6 +121,31 @@ function LSsetMIPCallback(pModel, pfMIPCallback, pvCbData)
     udata_Dict[pModel]._cbMIPFunc = pfMIPCallback
     relayMIPCallback_c = @cfunction(relayMIPCallback, Cint, (pLSmodel, Ref{jlLindoData_t}, Cdouble, Ptr{Cdouble}))
     ccall((:LSsetMIPCallback, liblindo), Cint, (pLSmodel, cbFunc_t, Ref{jlLindoData_t}), pModel, relayMIPCallback_c, udata_Dict[pModel])
+end
+
+function relayGOPCallback(pModel, uData, dObj, padPrimal)
+    # get number of variales
+    # get number of variales
+    nVar = [0]
+    LSgetInfo(pModel, LS_IINFO_NUM_VARS, nVar)
+    if nVar[1] == 0
+        return 0
+    end
+    # marshall the C data to julia
+    jl_padPrimal = Vector{Cdouble}(undef, nVar[1])
+    for i in 1:nVar[1]
+        jl_padPrimal[i] = unsafe_load(padPrimal,i)
+    end
+    uData._cbGOPFunc(pModel, uData._cbData, dObj, jl_padPrimal)
+    return Int32(0)
+end
+
+function LSsetGOPCallback(pModel, pfGOP_caller, pvPrData)
+    addToUdata(pModel)
+    udata_Dict[pModel]._cbData = pvPrData
+    udata_Dict[pModel]._cbGOPFunc = pfGOP_caller
+    relayGOPCallback_c = @cfunction(relayGOPCallback, Cint, (pLSmodel, Ref{jlLindoData_t}, Cdouble, Ptr{Cdouble}))
+    ccall((:LSsetGOPCallback, liblindo), Cint, (pLSmodel, GOP_callback_t, Ref{jlLindoData_t}), pModel, relayGOPCallback_c, udata_Dict[pModel])
 end
 
 function relayGradcalc(pModel, uData, nRow, padPrimal, lb, ub, isNewPoint, nNPar, pnParList, pdPartial)

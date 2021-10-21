@@ -1001,10 +1001,6 @@ function LSsetEnvExitFunc(pEnv, pfExitFunc, pvUserData)
     ccall((:LSsetEnvExitFunc, liblindo), Cint, (pLSenv, LSfuncExit_t, Ptr{Cvoid}), pEnv, pfExitFunc, pvUserData)
 end
 
-function LSsetGOPCallback(pModel, pfGOP_caller, pvPrData)
-    ccall((:LSsetGOPCallback, liblindo), Cint, (pLSmodel, GOP_callback_t, Ptr{Cvoid}), pModel, pfGOP_caller, pvPrData)
-end
-
 function LSfreeSolverMemory(pModel)
     ccall((:LSfreeSolverMemory, liblindo), Cvoid, (pLSmodel,), pModel)
 end
