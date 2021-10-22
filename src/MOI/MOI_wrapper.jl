@@ -226,7 +226,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
         model = new()
         model.ptr = C_NULL
         model.env = env === nothing ? Env() : env
-        model.silent = true
+        model.silent = false
         model.objective_type = _SCALAR_AFFINE
         model.objective_function = nothing
         model.loaded = false
@@ -705,10 +705,11 @@ end
 function MOI.set(model::Optimizer, raw::MOI.RawParameter, value)
     if raw.name == "use_Global"
         model.use_Global = value
-        MOI.set(model, MOI.Silent(), false)
-        return
+    elseif raw.name == "silent"
+        model.silent = value
+    else
+        println("$(raw.name): Not supported")
     end
-    println("$(raw.name): Not supported")
     return
 end
 
