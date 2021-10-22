@@ -292,9 +292,6 @@ function MOI.empty!(model::Optimizer)
     model.objective_type = _SCALAR_AFFINE
     model.objective_function = nothing
     model.loaded = false
-    model.use_LSsolveMIP = false
-    model.use_Global = false
-    model.objective_sense = MOI.MIN_SENSE
     empty!(model.variable_info)
 end
 
@@ -522,9 +519,14 @@ function MOI.optimize!(model::Optimizer)
     else                                                                        # to get the new primal variables
         nothing
     end
+
+    if model.silent == false
+        _setSolverCallback(model)
+    end
+
     pnStatus = Int32[-1]
     if model.use_Global == true
-        ret = LSsolveMIP(model.ptr, pnStatus)
+        ret = LSsolveGOP(model.ptr, pnStatus)
     elseif model.use_LSsolveMIP == true
         ret = LSsolveMIP(model.ptr, pnStatus)
     else
@@ -703,9 +705,11 @@ end
 function MOI.set(model::Optimizer, raw::MOI.RawParameter, value)
     if raw.name == "use_Global"
         model.use_Global = value
-        return
+    elseif raw.name == "silent"
+        model.silent = value
+    else
+        println("$(raw.name): Not supported")
     end
-    println("$(raw.name): Not supported")
     return
 end
 
@@ -864,4 +868,5 @@ end
 =#
 include("MOI_expression_tree.jl")
 include("MOI_var.jl")
+include("MOI_Callback.jl")
 include("supportedOperators.jl")

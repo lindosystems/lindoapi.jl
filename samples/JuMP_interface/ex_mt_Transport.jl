@@ -118,6 +118,8 @@ adds the transportation constraints
 function transport_model()
 
         model = Model(Lindoapi.Optimizer)
+        set_optimizer_attribute(model,"silent",true)
+
         @variable(model, x[1:m,1:n] >= 0, Int)
 
         for i in 1:m
