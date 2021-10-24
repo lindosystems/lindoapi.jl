@@ -965,10 +965,6 @@ function LSapplyLtf(pModel, panNewColIdx, panNewRowIdx, panNewColPos, panNewRowP
     ccall((:LSapplyLtf, liblindo), Cint, (pLSmodel, Ptr{Cint}, Ptr{Cint}, Ptr{Cint}, Ptr{Cint}, Cint), pModel, panNewColIdx, panNewRowIdx, panNewColPos, panNewRowPos, nMode)
 end
 
-function LSsetCallback(pModel, pfCallback, pvCbData)
-    ccall((:LSsetCallback, liblindo), Cint, (pLSmodel, cbFunc_t, Ptr{Cvoid}), pModel, pfCallback, pvCbData)
-end
-
 function LSsetMIPCCStrategy(pModel, pfStrategy, nRunId, szParamFile, pvCbData)
     ccall((:LSsetMIPCCStrategy, liblindo), Cint, (pLSmodel, cbStrategy_t, Cint, Ptr{Cchar}, Ptr{Cvoid}), pModel, pfStrategy, nRunId, szParamFile, pvCbData)
 end
