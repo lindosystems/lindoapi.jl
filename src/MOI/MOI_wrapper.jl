@@ -710,7 +710,7 @@ end
  Returns: nothing
 
 =#
-function MOI.set(model::Optimizer, raw::MOI.RawParameter, value)
+function MOI.set(model::Optimizer, raw::MOI.RawParameter, value::Bool)
     if raw.name == "use_Global"
         model.use_Global = value
     elseif raw.name == "silent"
@@ -721,7 +721,23 @@ function MOI.set(model::Optimizer, raw::MOI.RawParameter, value)
     return
 end
 
+function MOI.set(model::Optimizer, raw::MOI.RawParameter, value::Float64)
+    if haskey(ParamDouDict, raw.name)
+        LSsetModelDouParameter(model.ptr, ParamDouDict[raw.name], value)
+    else
+        println("$(raw.name): Not a supported Double Param")
+    end
+    return
+end
 
+function MOI.set(model::Optimizer, raw::MOI.RawParameter, value::Int64)
+    if haskey(ParamIntDict, raw.name)
+        LSsetModelIntParameter(model.ptr, ParamIntDict[raw.name], value)
+    else
+        println("$(raw.name): Not a supported Int Param")
+    end
+    return
+end
 
 # Return the set objective function
 MOI.get(model::Optimizer, ::MOI.AbstractFunction) = model.objective_function
@@ -878,3 +894,4 @@ include("MOI_expression_tree.jl")
 include("MOI_var.jl")
 include("MOI_Callback.jl")
 include("supportedOperators.jl")
+include("paramDict.jl")
