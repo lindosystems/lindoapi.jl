@@ -18,6 +18,7 @@
 =#
 # maintains user defined julia objects
 mutable struct jlLindoData_t
+    _cbFunc::Union{Nothing, Function}
     _cbMIPFunc::Union{Nothing, Function}
     _cbGOPFunc::Union{Nothing, Function}
     _cbModelLogFunc::Union{Nothing, Function}
@@ -31,7 +32,7 @@ mutable struct jlLindoData_t
  Brief: an empty constructor if a jlLindoData_t
 =#
     function jlLindoData_t()
-        return new(nothing,nothing,
+        return new(nothing,nothing,nothing,
         nothing,nothing,nothing,nothing)
     end
 end
@@ -98,6 +99,18 @@ end
         its relayXXX function.
 
 """
+function relayCallback(pModel, nLocation, uData)
+    println("nLocation")
+    uData._cbFunc(pModel, nLocation ,uData._cbData)
+end
+
+function LSsetCallback(pModel, pfCallback, pvCbData)
+    addToUdata(pModel)
+    udata_Dict[pModel]._cbData = pvCbData
+    udata_Dict[pModel]._cbFunc = pfCallback
+    relayCallback_c = @cfunction(relayCallback, Cint, (pLSmodel, Cint, Ref{jlLindoData_t}))
+    ccall((:LSsetCallback, liblindo), Cint, (pLSmodel, cbFunc_t, Ref{jlLindoData_t}), pModel, relayCallback_c, udata_Dict[pModel])
+end
 
 function relayMIPCallback(pModel, uData, dObj, padPrimal)
     # get number of variales
