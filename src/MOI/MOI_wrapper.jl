@@ -194,10 +194,6 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     usr_set_cbfunc::Bool
     usr_set_MIPcbfunc::Bool
     usr_set_GOPcbfunc::Bool
-    log_func::Union{Nothing,Function}
-    cb_func::Union{Nothing,Function}
-    cbMIP_func::Union{Nothing,Function}
-    cbGOB_func::Union{Nothing,Function}
     use_LSsolveMIP::Bool
     use_Global::Bool
     nlp_data::MOI.NLPBlockData
@@ -242,9 +238,6 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
         model.usr_set_cbfunc = false
         model.usr_set_MIPcbfunc = false
         model.usr_set_GOPcbfunc = false
-        model.log_func = logFunc
-        model.cbMIP_func = cbMIPFunc
-        model.cbGOB_func = cbGOPFunc
         model.use_LSsolveMIP = false
         model.use_Global = false
         model.load_index = 0

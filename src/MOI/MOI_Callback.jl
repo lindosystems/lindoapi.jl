@@ -64,10 +64,18 @@ end
  Breif: These structs are implemented so that the
       MOI set function can be used.
 =#
-struct LogFunction         <: MOI.AbstractCallback end
-struct CallbackFunction    <: MOI.AbstractCallback end
-struct GOPCallbackFunction <: MOI.AbstractCallback end
-struct MIPCallbackFunction <: MOI.AbstractCallback end
+mutable struct LogFunction            <: MOI.AbstractCallback
+    uData::Dict{Any,Any}
+end
+mutable struct CallbackFunction       <: MOI.AbstractCallback
+    uData::Dict{Any,Any}
+end
+mutable struct GOPCallbackFunction    <: MOI.AbstractCallback
+    uData::Dict{Any,Any}
+end
+mutable struct MIPCallbackFunction    <: MOI.AbstractCallback
+    uData::Dict{Any,Any}
+end
 
 #=
  MOI.set
@@ -77,27 +85,31 @@ struct MIPCallbackFunction <: MOI.AbstractCallback end
      Lindoapi.CallbackFunction() - the type of callback function.
      foo - the callback subroutine.
 =#
-function MOI.set(model::Optimizer, ::LogFunction, f::Function)
-    model.log_func = f
+function MOI.set(model::Optimizer, cb_data::LogFunction, f::Function)
     model.usr_set_logfunc = true
+    ret = LSsetModelLogfunc(model.ptr, f, cb_data.uData)
+    _check_ret(model, ret)
     return
 end
 
-function MOI.set(model::Optimizer, ::CallbackFunction, f::Function)
-    model.cb_func = f
+function MOI.set(model::Optimizer, cb_data::CallbackFunction, f::Function)
     model.usr_set_cbfunc = true
+    ret = LSsetCallback(model.ptr, f, cb_data.uData)
+    _check_ret(model, ret)
     return
 end
 
-function MOI.set(model::Optimizer, ::GOPCallbackFunction, f::Function)
-    model.cbGOB_func = f
+function MOI.set(model::Optimizer, cb_data::GOPCallbackFunction, f::Function)
     model.usr_set_GOPcbfunc = true
+    ret = LSsetGOPCallback(model.ptr, f, cb_data.uData)
+    _check_ret(model, ret)
     return
 end
 
-function MOI.set(model::Optimizer, ::MIPCallbackFunction, f::Function)
-    model.cbMIP_func = f
+function MOI.set(model::Optimizer, cb_data::MIPCallbackFunction, f::Function)
     model.usr_set_MIPcbfunc = true
+    ret = LSsetMIPCallback(model.ptr, f, cb_data.uData)
+    _check_ret(model, ret)
     return
 end
 
@@ -110,22 +122,15 @@ end
 
 =#
 function _setSolverCallback(model::Optimizer)
-    if model.usr_set_cbfunc == true
-        ret = LSsetCallback(model.ptr, model.cb_func, uDict)
-        _check_ret(model, ret)
-    elseif model.use_Global == true
-        ret = LSsetModelLogfunc(model.ptr, model.log_func, uDict)
-        _check_ret(model, ret)
-        ret = LSsetGOPCallback(model.ptr, model.cbGOB_func, uDict)
-        _check_ret(model, ret)
-    elseif model.use_LSsolveMIP == true
-         ret = LSsetModelLogfunc(model.ptr, model.log_func, uDict)
-         _check_ret(model, ret)
-        ret = LSsetMIPCallback(model.ptr, model.cbMIP_func, uDict)
-        _check_ret(model, ret)
+    if model.usr_set_logfunc == false
+        MOI.set(model, Lindoapi.LogFunction(uDict), logFunc)
+    end
+    if model.use_Global == true && model.usr_set_GOPcbfunc == false
+        MOI.set(model, Lindoapi.GOPCallbackFunction(uDict), cbGOPFunc)
+    elseif model.use_LSsolveMIP == true && model.usr_set_MIPcbfunc == false
+        MOI.set(model, Lindoapi.MIPCallbackFunction(uDict), cbMIPFunc)
     else
-        ret = LSsetModelLogfunc(model.ptr, model.log_func, uDict)
-        _check_ret(model, ret)
+        nothing
     end
     return
 end
