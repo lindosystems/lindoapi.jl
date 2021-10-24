@@ -1,14 +1,18 @@
 #=
 
   File: MOI_Callback.jl
-  Breif: This file contains the callback subroutines that are passed as arguments
-     to the API callback functions. It also contains a function sets the callback functions.
-     This file is used with the MOI_wrapper.jl, but does not implement and MOI functions.
-     The function _setSolverCallback is called by optimize! when model.silent == false.
-
+  Breif: This script extends the MOI_wrapper.jl file used to set callback functions.
+     This file contains default callback functions and MOI setter functions for
+     custom functions.
+     API Callbacks set:
+        * LSsetCallback
+        * LSsetGOPCallback
+        * LSsetMIPCallback
+        * LSsetModelLogfunc
 =#
 
 using Printf
+
 
 #=
  User pass through data for callback functions.
@@ -56,6 +60,48 @@ function cbGOPFunc(modelPtr, uDict, objValue, pimalValues)
 end
 
 #=
+ Type extentions
+ Breif: These structs are implemented so that the
+      MOI set function can be used.
+=#
+struct LogFunction         <: MOI.AbstractCallback end
+struct CallbackFunction    <: MOI.AbstractCallback end
+struct GOPCallbackFunction <: MOI.AbstractCallback end
+struct MIPCallbackFunction <: MOI.AbstractCallback end
+
+#=
+ MOI.set
+ Brief: Set a custom callback function.
+ Example: MOI.set(model, Lindoapi.CallbackFunction(), foo)
+     where:
+     Lindoapi.CallbackFunction() - the type of callback function.
+     foo - the callback subroutine.
+=#
+function MOI.set(model::Optimizer, ::LogFunction, f::Function)
+    model.log_func = f
+    model.usr_set_logfunc = true
+    return
+end
+
+function MOI.set(model::Optimizer, ::CallbackFunction, f::Function)
+    model.cb_func = f
+    model.usr_set_cbfunc = true
+    return
+end
+
+function MOI.set(model::Optimizer, ::GOPCallbackFunction, f::Function)
+    model.cbGOB_func = f
+    model.usr_set_GOPcbfunc = true
+    return
+end
+
+function MOI.set(model::Optimizer, ::MIPCallbackFunction, f::Function)
+    model.cbMIP_func = f
+    model.usr_set_MIPcbfunc = true
+    return
+end
+
+#=
 
  Function: _setSolverCallback
  Breif: This function sets any required callback function.
@@ -64,18 +110,21 @@ end
 
 =#
 function _setSolverCallback(model::Optimizer)
-    if model.use_Global == true
-        ret = LSsetModelLogfunc(model.ptr, logFunc, uDict)
+    if model.usr_set_cbfunc == true
+        ret = LSsetCallback(model.ptr, model.cb_func, uDict)
         _check_ret(model, ret)
-        ret = LSsetGOPCallback(model.ptr, cbGOPFunc, uDict)
+    elseif model.use_Global == true
+        ret = LSsetModelLogfunc(model.ptr, model.log_func, uDict)
+        _check_ret(model, ret)
+        ret = LSsetGOPCallback(model.ptr, model.cbGOB_func, uDict)
         _check_ret(model, ret)
     elseif model.use_LSsolveMIP == true
-         ret = LSsetModelLogfunc(model.ptr, logFunc, uDict)
+         ret = LSsetModelLogfunc(model.ptr, model.log_func, uDict)
          _check_ret(model, ret)
-        ret = LSsetMIPCallback(model.ptr, cbMIPFunc, uDict)
+        ret = LSsetMIPCallback(model.ptr, model.cbMIP_func, uDict)
         _check_ret(model, ret)
     else
-        ret = LSsetModelLogfunc(model.ptr, logFunc, uDict)
+        ret = LSsetModelLogfunc(model.ptr, model.log_func, uDict)
         _check_ret(model, ret)
     end
     return
