@@ -274,6 +274,16 @@ Base.cconvert(::Type{Ptr{Cvoid}}, model::Optimizer) = model
 Base.unsafe_convert(::Type{Ptr{Cvoid}}, model::Optimizer) = model.ptr
 
 #=
+
+ Struct: Lindoparam
+ Breif: This datatype extends MOI.AbstractOptimizerAttribute
+ to set Lindo parameters through the MOI interface.
+
+=#
+struct LindoParam <: MOI.AbstractOptimizerAttribute
+    param::Int32
+end
+#=
  Function empty!:
 
 =#
@@ -660,7 +670,7 @@ MOI.supports(::Optimizer, raw::MOI.RawParameter) = true
  Breif: This funciton is called by the interface when a constraint on
     a variable is added.
 
-Exsample: From JuMP @variable(model, x, Int) this will MOI.add_variables to
+Example: From JuMP @variable(model, x, Int) this will MOI.add_variables to
         initilze variable then MOI.add_constraint to add the integer constraint
 
  Returns: True if the MOI wrapper Supports a constraint
@@ -685,7 +695,7 @@ end
 
  Breif: This funciton is used to get model.use_Global a Boolen value
 
- Exsample: From JuMP get_optimizer_attribute(model,"use_Global")
+ Example: From JuMP get_optimizer_attribute(model,"use_Global")
 
  Returns: model.use_Global if raw.name == "use_Global"
           false otherwise
@@ -705,12 +715,12 @@ end
 
  Breif: This funciton is used to set model.use_Global to true or false
 
- Exsample: From JuMP set_optimizer_attribute(model,"use_Global",true)
+ Example: From JuMP set_optimizer_attribute(model,"use_Global",true)
 
  Returns: nothing
 
 =#
-function MOI.set(model::Optimizer, raw::MOI.RawParameter, value)
+function MOI.set(model::Optimizer, raw::MOI.RawParameter, value::Bool)
     if raw.name == "use_Global"
         model.use_Global = value
     elseif raw.name == "silent"
@@ -721,7 +731,24 @@ function MOI.set(model::Optimizer, raw::MOI.RawParameter, value)
     return
 end
 
+#=
 
+    Function: MOI set LindoParam()
+    Brief: These two functions set double and integer model parameters
+    with by calling the API directly. The LindoParam datatype was defined
+    for these two functions.
+    Example: from JuMP
+    set_optimizer_attribute(model,Lindoapi.LindoParam(Lindoapi.LS_DPARAM_CALLBACKFREQ),0.5)
+=#
+function MOI.set(model::Optimizer, name::LindoParam, value::Float64)
+    LSsetModelDouParameter(model.ptr, name.param, value)
+    return
+end
+
+function MOI.set(model::Optimizer, raw::MOI.RawParameter, value::Int64)
+    LSsetModelIntParameter(model.ptr, name.param, value)
+    return
+end
 
 # Return the set objective function
 MOI.get(model::Optimizer, ::MOI.AbstractFunction) = model.objective_function
@@ -878,3 +905,4 @@ include("MOI_expression_tree.jl")
 include("MOI_var.jl")
 include("MOI_Callback.jl")
 include("supportedOperators.jl")
+include("paramDict.jl")
