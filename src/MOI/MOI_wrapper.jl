@@ -806,6 +806,17 @@ end
 
 #=
 
+
+=#
+function MOI.get(model::Optimizer, ::MOI.DualStatus)
+    dualStatus = Int32[-1]
+    ret = LSgetInfo(model.ptr, LS_IINFO_DUAL_STATUS, dualStatus)
+    _check_ret(model, ret)
+    println(dualStatus)
+    return MOI.FEASIBLE_POINT
+end
+#=
+
  Function MOI.get: // MOI.SolverName
 
  Param model:
