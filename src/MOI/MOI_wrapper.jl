@@ -201,8 +201,11 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     objective_sense::MOI.OptimizationSense
     lindoTerminationStatus::Int
     next_column::Int
+    next_row::Int
     primal_values::Vector{Cdouble}
     primal_retrived::Bool
+    reducedCosts::Vector{Cdouble}
+    reducedCosts_retrived::Bool
     variable_info::CleverDicts.CleverDict{
         MOI.VariableIndex,
         _VariableInfo,
@@ -244,8 +247,11 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
         model.objective_sense = MOI.MIN_SENSE
         model.lindoTerminationStatus = LS_STATUS_UNLOADED
         model.next_column = 1
+        model.next_row = 1
         model.primal_values = Vector{Cdouble}(undef,0)
         model.primal_retrived = false
+        model.reducedCosts = Vector{Cdouble}(undef,0)
+        model.reducedCosts_retrived = false
         model.variable_info = CleverDicts.CleverDict{MOI.VariableIndex,_VariableInfo}(
             _HASH,
             _INVERSE_HASH,
@@ -423,7 +429,6 @@ function _get_next_column(model::Optimizer)
     return model.next_column - 1
 end
 
-
 #=
  Function _parse:
  Brief: takes the objective and constraints in the NLPBlock
@@ -483,6 +488,7 @@ function _parse(model::Optimizer,load::Bool)
         code, numval, ikod, ival = _add_to_expr_list(model,code, numval, ikod, ival, instructionList)
         cons_length[icon] = ikod - (cons_beg[icon] + 1)
         icon += 1
+        model.next_row += 1
     end
 
     for (key, info) in model.variable_info
@@ -625,6 +631,70 @@ function MOI.get(model::Optimizer, attr::MOI.VariablePrimal, key::MOI.VariableIn
     return model.primal_values[info.column]
 end
 
+
+#=
+
+
+=#
+function _getReducedCosts(model::Optimizer)
+    nVars = model.next_column - 1
+    resize!(model.reducedCosts, nVars)
+    if model.use_LSsolveMIP == true
+        ret = LSgetMIPReducedCosts(model.ptr, model.reducedCosts)
+    else
+        ret = LSgetReducedCosts(model.ptr,model.reducedCosts)
+    end
+    _check_ret(model, ret)
+end
+function MOI.get(model::Optimizer, attr::MOI.ConstraintDual, index::MOI.ConstraintIndex{MOI.SingleVariable, MOI.EqualTo{Float64}})
+    if model.reducedCosts_retrived == false
+        _getReducedCosts(model)
+        model.reducedCosts_retrived = true
+    end
+    return model.reducedCosts[index.value]
+end
+
+function MOI.get(model::Optimizer, attr::MOI.ConstraintDual, index::MOI.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}})
+    if model.reducedCosts_retrived == false
+        _getReducedCosts(model)
+        model.reducedCosts_retrived = true
+    end
+    return model.reducedCosts[index.value]
+end
+
+function MOI.get(model::Optimizer, attr::MOI.ConstraintDual, index::MOI.ConstraintIndex{MOI.SingleVariable, MOI.GreaterThan{Float64}})
+    if model.reducedCosts_retrived == false
+        _getReducedCosts(model)
+        model.reducedCosts_retrived = true
+    end
+    return model.reducedCosts[index.value]
+end
+
+#=
+
+ Function MOI.get: // MOI.ObjectiveValue
+ Brief: Gets the dual objective value by calling LSgetInfo
+        errors handeled by _check_ret. This function will throw
+        error if LSsolveMIP was used/
+ Param model:
+ Param attar: Sending MOI.SolverName() will let the MOI know what getter is being called.
+
+ Returns: the models dual objective value.
+
+=#
+function MOI.get(model::Optimizer, attr::MOI.DualObjectiveValue)
+    flag = LS_DINFO_DOBJ
+    if model.use_LSsolveMIP == true
+        padDual = Cdouble[-1]
+        ret = LSgetMIPDualSolution(model.ptr, padDual)
+        _check_ret(model, ret)
+    else
+        padDual = Cdouble[-1]
+        ret = LSgetDualSolution(model.ptr, padDual)
+        _check_ret(model, ret)
+    end
+    return padDual[1]
+end
 #=
 
 Function: Base.show
@@ -662,7 +732,8 @@ MOI.supports(model::Optimizer, ::MOI.VariablePrimal, ::Type{MOI.VariableIndex}) 
 MOI.supports(model::Optimizer, ::MOI.ObjectiveSense) = true
 MOI.supports(::Optimizer, ::MOI.NLPBlock) = true
 MOI.supports(::Optimizer, raw::MOI.RawParameter) = true
-
+MOI.supports(model::Optimizer, ::MOI.DualStatus) = true
+MOI.supports(model::Optimizer, ::MOI.ConstraintDual) = true
 #=
 
  Function: MOI.supports_constraint
