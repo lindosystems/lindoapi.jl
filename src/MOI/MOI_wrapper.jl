@@ -282,7 +282,7 @@ Base.unsafe_convert(::Type{Ptr{Cvoid}}, model::Optimizer) = model.ptr
 #=
 
  Struct: Lindoparam
- Breif: This datatype extends MOI.AbstractOptimizerAttribute
+ Brief: This datatype extends MOI.AbstractOptimizerAttribute
  to set Lindo parameters through the MOI interface.
 
 =#
@@ -322,7 +322,7 @@ end
 #=
 
  Function is_empty:
- Breif: Returns false if the model has any variables, constraints,
+ Brief: Returns false if the model has any variables, constraints,
         and model attributes.
 
  Param model: Of type Optimizer
@@ -337,7 +337,7 @@ end
 
 #=
  Function _check_ret:
- Breif: Checks the return code from an API call throws an error and
+ Brief: Checks the return code from an API call throws an error and
         and displays the error string.
 
  Param model: Of type Optimizer
@@ -356,7 +356,7 @@ end
 #=
 
  Function: _info
- Breif: When you have a VariableIndex and want to get the _VariableInfo type
+ Brief: When you have a VariableIndex and want to get the _VariableInfo type
         stored at that location.
 
  Para model: Of type Optimizer
@@ -378,7 +378,7 @@ end
 #=
 
  Function: _add_to_expr_list
- Breif: takes an post order expresion and
+ Brief: takes an post order expresion and
         (1) adds it to a Lindo instruction list (code)
         (2) adds to the numval list that stores coefficents
         (3) updates cursors ikod and ival
@@ -419,7 +419,7 @@ end
 #=
 
  Function _get_next_column:
- Breif: This function is used to get the next_columnm and,
+ Brief: This function is used to get the next_columnm and,
         incrament the model attribute next_column.
 
  Param model:
@@ -488,7 +488,6 @@ function _parse(model::Optimizer,load::Bool)
         code, numval, ikod, ival = _add_to_expr_list(model,code, numval, ikod, ival, instructionList)
         cons_length[icon] = ikod - (cons_beg[icon] + 1)
         icon += 1
-        model.next_row += 1
     end
 
     for (key, info) in model.variable_info
@@ -588,7 +587,7 @@ end
 #=
 
  Function getPrimalSolution:
- Breif: Since the Lindo API can only quary for
+ Brief: Since the Lindo API can only quary for
         all primal solution this a seprate function
         is written to only call LSgetPrimalSolution (or LSgetMIPPrimalSolution if MIP )
         once for a model. The values will be stored
@@ -612,7 +611,7 @@ end
 #=
 LSgetMIPPrimalSolution( pModel, primal)
  Function MOI.get // attr::MOI.VariablePrimal
- Breif: gets the primal value of variable at given index.
+ Brief: gets the primal value of variable at given index.
 
  Param model:
  Param attr: This idicates what MOI.get function to call put MOI.VariablePrimal()
@@ -634,6 +633,11 @@ end
 
 #=
 
+ Function _getReducedCosts
+ Brief: Calls LSgetMIPReducedCosts or LSgetReducedCosts depending on the
+   solver used. The reduced costs are placed in an array attached to the model.
+
+ Param model:
 
 =#
 function _getReducedCosts(model::Optimizer)
@@ -646,23 +650,30 @@ function _getReducedCosts(model::Optimizer)
     end
     _check_ret(model, ret)
 end
-function MOI.get(model::Optimizer, attr::MOI.ConstraintDual, index::MOI.ConstraintIndex{MOI.SingleVariable, MOI.EqualTo{Float64}})
-    if model.reducedCosts_retrived == false
-        _getReducedCosts(model)
-        model.reducedCosts_retrived = true
-    end
-    return model.reducedCosts[index.value]
-end
 
-function MOI.get(model::Optimizer, attr::MOI.ConstraintDual, index::MOI.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}})
-    if model.reducedCosts_retrived == false
-        _getReducedCosts(model)
-        model.reducedCosts_retrived = true
-    end
-    return model.reducedCosts[index.value]
-end
+#=
 
-function MOI.get(model::Optimizer, attr::MOI.ConstraintDual, index::MOI.ConstraintIndex{MOI.SingleVariable, MOI.GreaterThan{Float64}})
+ Function MOI.get //  attr::MOI.ConstraintDual, index::Index
+
+ Brief: This function returns the reduced cost of a variable.
+    if the reduced costs have not been retrived _getReducedCosts is called.
+
+ Param model:
+ Param attr: A constraint attribute for the assignment to some co
+ 0`nstraint's dual value(s).
+ Param index: used to refrencing constrined variables in the model.
+    index.value is the location of the variable in the model.reducedCosts array.
+
+ Returns: The reduced cost of the variable.
+
+ JuMP Sample: JuMP.reduced_cost(x[1])
+=#
+function MOI.get(model::Optimizer, attr::MOI.ConstraintDual,
+    index::Index) where Index <: Union{
+    MOI.ConstraintIndex{MOI.SingleVariable, MOI.EqualTo{Float64}},
+    MOI.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}},
+    MOI.ConstraintIndex{MOI.SingleVariable, MOI.GreaterThan{Float64}},
+    }
     if model.reducedCosts_retrived == false
         _getReducedCosts(model)
         model.reducedCosts_retrived = true
@@ -671,8 +682,29 @@ function MOI.get(model::Optimizer, attr::MOI.ConstraintDual, index::MOI.Constrai
 end
 
 #=
+    Function MOI.get // MOI.NLPBlockDual
 
- Function MOI.get: // MOI.ObjectiveValue
+    Brief: gets dual prices for each constraint in the NLPBlock.
+
+    Param model:
+    Param attr: The Lagrange multipliers on the constraints from the NLPBlock
+
+    Returns padDual: The Lagrange multipliers
+=#
+function MOI.get(model::Optimizer, attr::MOI.NLPBlockDual)
+    ncons = length(model.nlp_data.constraint_bounds)
+    padDual =  Vector{Cdouble}(undef, ncons)
+    if model.use_LSsolveMIP == true
+        ret = LSgetMIPDualSolution(model.ptr, padDual)
+    else
+        ret = LSgetDualSolution(model.ptr, padDual)
+    end
+    _check_ret(model, ret)
+    return padDual
+end
+#=
+
+ Function MOI.get: // MOI.DualObjectiveValue
  Brief: Gets the dual objective value by calling LSgetInfo
         errors handeled by _check_ret. This function will throw
         error if LSsolveMIP was used/
@@ -683,17 +715,14 @@ end
 
 =#
 function MOI.get(model::Optimizer, attr::MOI.DualObjectiveValue)
-    flag = LS_DINFO_DOBJ
-    if model.use_LSsolveMIP == true
-        padDual = Cdouble[-1]
-        ret = LSgetMIPDualSolution(model.ptr, padDual)
+    dualObj = Cdouble[-1]
+    if model.use_LSsolveMIP == false
+        ret = LSgetInfo(model.ptr, LS_DINFO_DOBJ, dualObj)
         _check_ret(model, ret)
     else
-        padDual = Cdouble[-1]
-        ret = LSgetDualSolution(model.ptr, padDual)
-        _check_ret(model, ret)
+        dualObj[1] = nothing
     end
-    return padDual[1]
+    return dualObj[1]
 end
 #=
 
@@ -720,25 +749,28 @@ end
           Flase if not.
 
 =#
-MOI.supports(model::Optimizer, ::MOI.SolverName) = true
-MOI.supports(model::Optimizer, ::MOI.RawSolver) = true
-MOI.supports(model::Optimizer, ::MOI.Name) = false
-MOI.supports(model::Optimizer, ::MOI.Silent) = true
-MOI.supports(model::Optimizer, ::MOI.TimeLimitSec) = false
-MOI.supports(model::Optimizer, ::MOI.NumberOfThreads) = false
-MOI.supports(model::Optimizer, ::MOI.NumberOfVariables) = true
-MOI.supports(model::Optimizer, ::MOI.TerminationStatus) = true
-MOI.supports(model::Optimizer, ::MOI.VariablePrimal, ::Type{MOI.VariableIndex}) = true
-MOI.supports(model::Optimizer, ::MOI.ObjectiveSense) = true
+MOI.supports(::Optimizer, ::MOI.SolverName) = true
+MOI.supports(::Optimizer, ::MOI.RawSolver) = true
+MOI.supports(::Optimizer, ::MOI.Name) = false
+MOI.supports(::Optimizer, ::MOI.Silent) = true
+MOI.supports(::Optimizer, ::MOI.TimeLimitSec) = false
+MOI.supports(::Optimizer, ::MOI.NumberOfThreads) = false
+MOI.supports(::Optimizer, ::MOI.NumberOfVariables) = true
+MOI.supports(::Optimizer, ::MOI.TerminationStatus) = true
+MOI.supports(::Optimizer, ::MOI.VariablePrimal, ::Type{MOI.VariableIndex}) = true
+MOI.supports(::Optimizer, ::MOI.ObjectiveSense) = true
 MOI.supports(::Optimizer, ::MOI.NLPBlock) = true
-MOI.supports(::Optimizer, raw::MOI.RawParameter) = true
-MOI.supports(model::Optimizer, ::MOI.DualStatus) = true
-MOI.supports(model::Optimizer, ::MOI.ConstraintDual) = true
+MOI.supports(::Optimizer, ::MOI.RawStatusString) = true
+MOI.supports(::Optimizer, ::MOI.RawParameter) = true
+MOI.supports(::Optimizer, ::MOI.ResultCount) = true
+MOI.supports(::Optimizer, ::MOI.PrimalStatus) = true
+MOI.supports(::Optimizer, ::MOI.DualStatus) = true
+MOI.supports(::Optimizer, ::MOI.ConstraintDual) = true
 #=
 
  Function: MOI.supports_constraint
 
- Breif: This funciton is called by the interface when a constraint on
+ Brief: This funciton is called by the interface when a constraint on
     a variable is added.
 
 Example: From JuMP @variable(model, x, Int) this will MOI.add_variables to
@@ -762,9 +794,48 @@ end
 
 #=
 
+ Function: MOI.get // ::MOI.ObjectiveBound
+
+ Brief: Reuturns the best known bound on an optimal objective value
+
+=#
+function MOI.get(model::Optimizer,::MOI.ObjectiveBound)
+    bound = Cdouble[-1]
+    if model.use_LSsolveMIP == true
+        ret = LSgetInfo(model.ptr, LS_DINFO_MIP_BESTBOUND, bound)
+    else
+        ret = LSgetInfo(model.ptr, LS_DINFO_GOP_BESTBOUND, bound)
+    end
+    _check_ret(model, ret)
+    return bound[1]
+end
+
+#=
+
+ Function: MOI.get // ::MOI.ResultCount
+
+ Brief: Returns the number of results available.
+ TODO: Add support beyond one result
+=#
+MOI.get(::Optimizer, ::MOI.ResultCount) = 1
+
+#=
+
+ Function: MOI.get // ::MOI.RawStatusString
+
+ Brief : Returns a model attribute for a solver specific string explaining
+      why the optimizer stopped.
+
+=#
+function MOI.get(model::Optimizer, ::MOI.RawStatusString)
+    return string(model.lindoTerminationStatus)
+end
+
+#=
+
  Function: MOI.get // MOI.RawParameter
 
- Breif: This funciton is used to get model.use_Global a Boolen value
+ Brief: This funciton is used to get model.use_Global a Boolen value
 
  Example: From JuMP get_optimizer_attribute(model,"use_Global")
 
@@ -784,7 +855,7 @@ end
 
  Function: MOI.set // MOI.RawParameter
 
- Breif: This funciton is used to set model.use_Global to true or false
+ Brief: This funciton is used to set model.use_Global to true or false
 
  Example: From JuMP set_optimizer_attribute(model,"use_Global",true)
 
@@ -827,7 +898,7 @@ MOI.get(model::Optimizer, ::MOI.AbstractFunction) = model.objective_function
 #=
 
  Function MOI.get: // MOI.Silent
- Breif:
+ Brief:
 
  Param model:
  Param : Sending MOI.Silent() will let the MOI know what getter is being called.
@@ -855,7 +926,7 @@ end
 #=
 
  Function: MOI.get // MOI.TerminationStatus
- Breif: Turns Lindo API model's termination status into an equivalent
+ Brief: Turns Lindo API model's termination status into an equivalent
         MOI termination status and returns it.
 
  Params model:
@@ -868,25 +939,132 @@ function MOI.get(model::Optimizer, attr::MOI.TerminationStatus)
     model.lindoTerminationStatus == LS_STATUS_OPTIMAL && return MOI.OPTIMAL
     model.lindoTerminationStatus == LS_STATUS_BASIC_OPTIMAL && return MOI.OPTIMAL
     model.lindoTerminationStatus == LS_STATUS_INFEASIBLE && return MOI.INFEASIBLE
+    model.lindoTerminationStatus == LS_STATUS_UNBOUNDED && return MOI.INFEASIBLE_OR_UNBOUNDED
+    model.lindoTerminationStatus == LS_STATUS_FEASIBLE && return MOI.ALMOST_LOCALLY_SOLVED
+    model.lindoTerminationStatus == LS_STATUS_INFORUNB && return MOI.INFEASIBLE_OR_UNBOUNDED
+    model.lindoTerminationStatus == LS_STATUS_NEAR_OPTIMAL && return MOI.ALMOST_OPTIMAL
     model.lindoTerminationStatus == LS_STATUS_LOCAL_OPTIMAL && return MOI.LOCALLY_SOLVED
     model.lindoTerminationStatus == LS_STATUS_LOCAL_INFEASIBLE && return MOI.LOCALLY_INFEASIBLE
-    model.lindoTerminationStatus == LS_STATUS_UNBOUNDED && return MOI.DUAL_INFEASIBLE
-    model.lindoTerminationStatus == LS_STATUS_INFEASIBLE && return MOI.INFEASIBLE_OR_UNBOUNDED
-    return MOI.OPTIMIZE_NOT_CALLED
+    model.lindoTerminationStatus == LS_STATUS_CUTOFF && return MOI.OBJECTIVE_LIMIT
+    model.lindoTerminationStatus == LS_STATUS_NUMERICAL_ERROR && return MOI.NUMERICAL_ERROR
+    model.lindoTerminationStatus == LS_STATUS_UNKNOWN && return MOI.OTHER_ERROR
+    model.lindoTerminationStatus == LS_STATUS_UNLOADED && return MOI.OPTIMIZE_NOT_CALLED
+    model.lindoTerminationStatus == LS_STATUS_LOADED && return MOI.OPTIMIZE_NOT_CALLED
+    return MOI.OTHER_ERROR
 end
 
 #=
+    Function: MOI.get // ::MOI.DualStatus
+    Brief: Uses LSgetInfo to get the dual status
+    then returns the MOI.ResultStatusCode
 
-
+    TODO: Convert dualStatus to ResultStatusCode
 =#
 function MOI.get(model::Optimizer, ::MOI.DualStatus)
     dualStatus = Int32[-1]
     ret = LSgetInfo(model.ptr, LS_IINFO_DUAL_STATUS, dualStatus)
-    _check_ret(model, ret)
     println(dualStatus)
     return MOI.FEASIBLE_POINT
 end
+
 #=
+    Function: MOI.get // ::MOI.PrimalStatus
+    Brief: Uses LSgetInfo to get the primal status
+    then returns the MOI.ResultStatusCode
+
+    TODO: Convert primalStatus to ResultStatusCode
+=#
+function MOI.get(model::Optimizer, ::MOI.PrimalStatus)
+    primalStatus = Int32[-1]
+    ret = LSgetInfo(model.ptr, LS_IINFO_PRIMAL_STATUS, primalStatus)
+    return MOI.FEASIBLE_POINT
+end
+
+#=
+
+    Function: MOI.get // ::MOI.SolveTime
+
+    Brief: Calls LSgetInfo to get the solve time
+
+    Returns: solve time
+=#
+function MOI.get(model::Optimizer, ::MOI.SolveTime)
+    solveTime = Int32[0]
+    if model.use_Global == true
+        ret = LSgetInfo(model.ptr, LS_IINFO_GOP_TOT_TIME, solveTime)
+    elseif model.use_LSsolveMIP == true
+        ret = LSgetInfo(model.ptr, LS_DINFO_MIP_TOT_TIME, solveTime)
+    else
+        ret = LSgetInfo(model.ptr, LS_IINFO_ELAPSED_TIME, solveTime)
+    end
+    _check_ret(model, ret)
+    return solveTime[1]
+end
+
+#=
+
+    Function: MOI.get // ::MOI.BarrierIterations
+
+    Brief: Calls LSgetInfo to get the number of barrier iterations
+
+    Returns: number of barrier iterations
+=#
+function MOI.get(model::Optimizer, ::MOI.BarrierIterations)
+    barItter = Int32[0]
+    if model.use_Global == true
+        ret = LSgetInfo(model.ptr, LS_IINFO_GOP_BAR_ITER, barItter)
+    elseif model.use_LSsolveMIP == true
+        ret = LSgetInfo(model.ptr, LS_IINFO_MIP_BAR_ITER, barItter)
+    else
+        ret = LSgetInfo(model.ptr, LS_IINFO_BAR_ITER, barItter)
+    end
+    _check_ret(model, ret)
+    return barItter[1]
+end
+
+#=
+
+    Function: MOI.get // ::MOI.SimplexIterations
+
+    Brief: Calls LSgetInfo to get the number of simplex iterations
+
+    Returns: number of simplex iterations
+=#
+function MOI.get(model::Optimizer, ::MOI.SimplexIterations)
+    simItter = Int32[0]
+    if model.use_Global == true
+        ret = LSgetInfo(model.ptr, LS_IINFO_GOP_SIM_ITER, simItter)
+    elseif model.use_LSsolveMIP == true
+        ret = LSgetInfo(model.ptr, LS_IINFO_MIP_SIM_ITER, simItter)
+    else
+        ret = LSgetInfo(model.ptr, LS_IINFO_SIM_ITER, simItter)
+    end
+    println(ret)
+    _check_ret(model, ret)
+    return simItter[1]
+end
+
+#=
+
+    Function: MOI.get // ::MOI.NodeCount
+
+    Brief:
+
+    Returns:
+
+    TODO: NodeCount is the number of nodes explored
+     LS_IINFO_MIP_ACTIVENODES is the remaining nodes to be explored
+=#
+function MOI.get(model::Optimizer, ::MOI.NodeCount)
+    nodeCount = Int32[0]
+    if model.use_LSsolveMIP == true
+        ret = LSgetInfo(model.ptr, LS_IINFO_MIP_ACTIVENODES, nodeCount )
+        _check_ret(model, ret)
+    end
+    return nodeCount[1]
+end
+#=
+
 
  Function MOI.get: // MOI.SolverName
 
@@ -964,7 +1142,7 @@ _get_Lindo_sense(model::Optimizer) = _SENSE[model.objective_sense]
 
  Function MOI.set: // MOI.NLPBlock
 
- Breif: Attaches the NLPBlock struct to the model
+ Brief: Attaches the NLPBlock struct to the model
 
  Param model:
  Param : Sending MOI.NLPBlock() will let the MOI know what setter is being called.
