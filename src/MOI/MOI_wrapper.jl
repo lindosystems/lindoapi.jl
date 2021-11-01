@@ -887,7 +887,7 @@ function MOI.set(model::Optimizer, name::LindoParam, value::Float64)
     return
 end
 
-function MOI.set(model::Optimizer, raw::MOI.RawParameter, value::Int64)
+function MOI.set(model::Optimizer, name::LindoParam, value::Int64)
     LSsetModelIntParameter(model.ptr, name.param, value)
     return
 end
