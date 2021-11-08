@@ -281,14 +281,20 @@ Base.unsafe_convert(::Type{Ptr{Cvoid}}, model::Optimizer) = model.ptr
 
 #=
 
- Struct: Lindoparam
+ Struct: LindoXXXparam
  Brief: This datatype extends MOI.AbstractOptimizerAttribute
  to set Lindo parameters through the MOI interface.
 
 =#
-struct LindoParam <: MOI.AbstractOptimizerAttribute
+struct LindoIntParam <: MOI.AbstractOptimizerAttribute
     param::Int32
 end
+struct LindoDouParam <: MOI.AbstractOptimizerAttribute
+    param::Int32
+end
+struct Slack_or_Surplus <: MOI.AbstractOptimizerAttribute
+end
+
 #=
  Function empty!:
 
@@ -724,6 +730,19 @@ function MOI.get(model::Optimizer, attr::MOI.DualObjectiveValue)
     end
     return dualObj[1]
 end
+
+function MOI.get(model::Optimizer, attr::Slack_or_Surplus)
+    slack = Vector{Cdouble}(undef, length(model.nlp_data.constraint_bounds))
+    if model.use_LSsolveMIP == true
+        ret = LSgetMIPSlacks(model.ptr, slack)
+    else
+        ret = LSgetSlacks(model.ptr, slack)
+    end
+    _check_ret(model, ret)
+    return slack
+end
+
+
 #=
 
 Function: Base.show
@@ -766,6 +785,8 @@ MOI.supports(::Optimizer, ::MOI.ResultCount) = true
 MOI.supports(::Optimizer, ::MOI.PrimalStatus) = true
 MOI.supports(::Optimizer, ::MOI.DualStatus) = true
 MOI.supports(::Optimizer, ::MOI.ConstraintDual) = true
+MOI.supports(::Optimizer, ::MOI.VariableName, ::Type{MOI.VariableIndex}) = true
+
 #=
 
  Function: MOI.supports_constraint
@@ -819,17 +840,6 @@ end
 =#
 MOI.get(::Optimizer, ::MOI.ResultCount) = 1
 
-#=
-
- Function: MOI.get // ::MOI.RawStatusString
-
- Brief : Returns a model attribute for a solver specific string explaining
-      why the optimizer stopped.
-
-=#
-function MOI.get(model::Optimizer, ::MOI.RawStatusString)
-    return string(model.lindoTerminationStatus)
-end
 
 #=
 
@@ -875,21 +885,42 @@ end
 
 #=
 
-    Function: MOI set LindoParam()
-    Brief: These two functions set double and integer model parameters
-    with by calling the API directly. The LindoParam datatype was defined
-    for these two functions.
+    Function: MOI set LindoXXXParam()
+    Brief: This function sets double and integer model parameters
+    with by calling the API directly.
     Example: from JuMP
-    set_optimizer_attribute(model,Lindoapi.LindoParam(Lindoapi.LS_DPARAM_CALLBACKFREQ),0.5)
+    set_optimizer_attribute(model,Lindoapi.LindoDouParam(Lindoapi.LS_DPARAM_CALLBACKFREQ),0.5)
 =#
-function MOI.set(model::Optimizer, name::LindoParam, value::Float64)
-    LSsetModelDouParameter(model.ptr, name.param, value)
+function MOI.set(model::Optimizer, name::Param, value::Float64
+    )where {Param <: Union{LindoIntParam, LindoDouParam}}
+    if typeof(name) == LindoIntParam
+        ret = LSsetModelIntParameter(model.ptr, name.param, Cdouble(value))
+    else
+        ret = LSsetModelDouParameter(model.ptr, name.param, Cdouble(value))
+    end
+    _check_ret(model, ret)
     return
 end
 
-function MOI.set(model::Optimizer, name::LindoParam, value::Int64)
-    LSsetModelIntParameter(model.ptr, name.param, value)
-    return
+#=
+
+    Function: MOI get LindoXXXParam()
+    Brief: This function gets double and integer model parameters
+    with by calling the API directly.
+    Example: from JuMP
+    get_optimizer_attribute(model,Lindoapi.LindoDouParam(Lindoapi.LS_DPARAM_CALLBACKFREQ),0.5)
+=#
+function MOI.get(model::Optimizer, name::Param
+    )where {Param <: Union{LindoIntParam, LindoDouParam}}
+    if typeof(name) == LindoIntParam
+        param_ptr = Int[-1]
+        ret = LSgetModelIntParameter(model.ptr, name.param, param_ptr)
+    else
+        param_ptr = Cdouble[-1.0]
+        ret = LSgetModelDouParameter(model.ptr, name.param, param_ptr)
+    end
+    _check_ret(model, ret)
+    return param_ptr[1]
 end
 
 # Return the set objective function
@@ -954,6 +985,31 @@ function MOI.get(model::Optimizer, attr::MOI.TerminationStatus)
 end
 
 #=
+
+ Function: MOI.get // ::MOI.RawStatusString
+
+ Brief : Returns a model attribute for a solver specific string explaining
+      why the optimizer stopped.
+
+=#
+function MOI.get(model::Optimizer, ::MOI.RawStatusString)
+    model.lindoTerminationStatus == LS_STATUS_OPTIMAL && return "LS_STATUS_OPTIMAL"
+    model.lindoTerminationStatus == LS_STATUS_BASIC_OPTIMAL && return "LS_STATUS_BASIC_OPTIMAL"
+    model.lindoTerminationStatus == LS_STATUS_INFEASIBLE && return "LS_STATUS_INFEASIBLE"
+    model.lindoTerminationStatus == LS_STATUS_UNBOUNDED && return "LS_STATUS_UNBOUNDED"
+    model.lindoTerminationStatus == LS_STATUS_FEASIBLE && return "LS_STATUS_FEASIBLE"
+    model.lindoTerminationStatus == LS_STATUS_INFORUNB && return "LS_STATUS_INFORUNB "
+    model.lindoTerminationStatus == LS_STATUS_NEAR_OPTIMAL && return "LS_STATUS_NEAR_OPTIMAL"
+    model.lindoTerminationStatus == LS_STATUS_LOCAL_OPTIMAL && return "LS_STATUS_LOCAL_OPTIMAL"
+    model.lindoTerminationStatus == LS_STATUS_LOCAL_INFEASIBLE && return "LS_STATUS_LOCAL_INFEASIBLE"
+    model.lindoTerminationStatus == LS_STATUS_CUTOFF && return "LS_STATUS_CUTOFF"
+    model.lindoTerminationStatus == LS_STATUS_NUMERICAL_ERROR && return "LS_STATUS_NUMERICAL_ERROR"
+    model.lindoTerminationStatus == LS_STATUS_UNKNOWN && return "LS_STATUS_UNKNOWN"
+    model.lindoTerminationStatus == LS_STATUS_UNLOADED && return "LS_STATUS_UNLOADED"
+    model.lindoTerminationStatus == LS_STATUS_LOADED && return "LS_STATUS_LOADED"
+    return "LS_STATUS_UNKNOWN"
+end
+#=
     Function: MOI.get // ::MOI.DualStatus
     Brief: Uses LSgetInfo to get the dual status
     then returns the MOI.ResultStatusCode
@@ -963,7 +1019,6 @@ end
 function MOI.get(model::Optimizer, ::MOI.DualStatus)
     dualStatus = Int32[-1]
     ret = LSgetInfo(model.ptr, LS_IINFO_DUAL_STATUS, dualStatus)
-    println(dualStatus)
     return MOI.FEASIBLE_POINT
 end
 
@@ -1058,7 +1113,7 @@ end
 function MOI.get(model::Optimizer, ::MOI.NodeCount)
     nodeCount = Int32[0]
     if model.use_LSsolveMIP == true
-        ret = LSgetInfo(model.ptr, LS_IINFO_MIP_ACTIVENODES, nodeCount )
+        ret = LSgetInfo(model.ptr, LS_IINFO_MIP_BRANCHCOUNT, nodeCount)
         _check_ret(model, ret)
     end
     return nodeCount[1]

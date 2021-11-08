@@ -56,11 +56,11 @@ R = 0.07
 # initialize model
 model = Model(Lindoapi.Optimizer)
 # Declaring n model variables of portfolio weights
-@variable(model, w[1:n] >= 0)
+@variable(model,  w[1:n] >= 0)
 # Portfolio weights sum to 1
-@NLconstraint(model, sum(w[i] for i in 1:n) == 1)
+portfolio_con = @NLconstraint(model, sum(w[i] for i in 1:n) == 1)
 # Portfolio must be at least desired minimum expected return
-@NLconstraint(model, sum(w[i]*r[i] for i in 1:n) >= R)
+return_con = @NLconstraint(model, sum(w[i]*r[i] for i in 1:n) >= R)
 # Minimize portfolio variance
 @NLobjective(model, Min, sum(w[i] * sum(Σ[i,j] * w[j] for j in 1:n) for i in 1:n))
 # Call the optimizer
@@ -68,15 +68,22 @@ optimize!(model)
 # Query objective value
 objVal = objective_value(model)
 w_star = value.(w)
-# Expected return of optimal portfolio
+rd     = reduced_cost.(w)
+slacks = JuMP.get_optimizer_attribute(model, Lindoapi.Slack_or_Surplus())
 μ_star = w_star'r
 #Printing out objective value and primal solution
 println()
 @printf("Expected return :  %.4f \n", μ_star)
 @printf("Variance        :  %.4f \n", objVal)
-@printf "%s  %20s\n" "Index" "Asset weights"
-println(repeat('=', 30))
+println("Index       Asset weight        Reduced Cost")
+println(repeat('=', 45))
 for i in 1:n
-    @printf("%i %20.6f \n", i, value(w[i]))
+    @printf("w%i %20.6f %20.6f\n", i, w_star[i], rd[i])
 end
+println(repeat('=', 45))
 println()
+println("constraint       slack           Dual")
+println("========================================")
+@printf("Portfolio   %10.6f     %10.6f\n", slacks[1], JuMP.dual(portfolio_con))
+@printf("Return      %10.6f     %10.6f\n", slacks[2], JuMP.dual(return_con))
+println("========================================")
