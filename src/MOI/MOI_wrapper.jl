@@ -610,7 +610,6 @@ function _getPrimalSolution(model::Optimizer)
     else
         ret = LSgetPrimalSolution(model.ptr, model.primal_values)
     end
-
     _check_ret(model, ret)
 end
 
@@ -652,7 +651,7 @@ function _getReducedCosts(model::Optimizer)
     if model.use_LSsolveMIP == true
         ret = LSgetMIPReducedCosts(model.ptr, model.reducedCosts)
     else
-        ret = LSgetReducedCosts(model.ptr,model.reducedCosts)
+        ret = LSgetReducedCosts(model.ptr, model.reducedCosts)
     end
     _check_ret(model, ret)
 end
@@ -679,6 +678,8 @@ function MOI.get(model::Optimizer, attr::MOI.ConstraintDual,
     MOI.ConstraintIndex{MOI.SingleVariable, MOI.EqualTo{Float64}},
     MOI.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}},
     MOI.ConstraintIndex{MOI.SingleVariable, MOI.GreaterThan{Float64}},
+    MOI.ConstraintIndex{MOI.SingleVariable, MOI.ZeroOne},
+    MOI.ConstraintIndex{MOI.SingleVariable, MOI.Integer},
     }
     if model.reducedCosts_retrived == false
         _getReducedCosts(model)
@@ -1028,11 +1029,51 @@ end
     then returns the MOI.ResultStatusCode
 
     TODO: Convert primalStatus to ResultStatusCode
+
+
+     mxlindo('LSgetModelDouParameter',iModel, LS_DPARAM_SOLVER_FEASTOL);
+
+
+     For MIP models, the following parameters will have to be used or taken into account
+   LS_IINFO_MIP_STATUS                      = 11300,
+   LS_DINFO_MIP_PFEAS                       = 11353,
+   LS_DINFO_MIP_INTPFEAS                    = 11354,
+Note, pftol applies to MIP constraints as well, but the following is needed for integer feasibility
+   LS_DPARAM_MIP_INTTOL                     = 5305,
+   LS_DPARAM_MIP_RELINTTOL                  = 5306,
 =#
 function MOI.get(model::Optimizer, ::MOI.PrimalStatus)
-    primalStatus = Int32[-1]
-    ret = LSgetInfo(model.ptr, LS_IINFO_PRIMAL_STATUS, primalStatus)
-    return MOI.FEASIBLE_POINT
+
+    moi_termination = MOI.get(model, MOI.TerminationStatus())
+    moi_termination == MOI.INFEASIBLE_OR_UNBOUNDED || moi_termination == MOI.INFEASIBLE && return MOI.NO_SOLUTION
+
+    primStat   = Int32[-1]
+    primInf    = Cdouble[-1]
+    primIntInf = Cdouble[-1]
+    pftol      = Cdouble[-1]
+    pfreltol   = Cdouble[-1]
+    if model.use_LSsolveMIP
+        nErrp  = LSgetInfo(model.ptr, LS_IINFO_MIP_STATUS, primStat)
+        ret1   = LSgetInfo(model.ptr, LS_DINFO_MIP_PFEAS, primInf)
+        ret2   = LSgetInfo(model.ptr, LS_DINFO_MIP_INTPFEAS, pftol)
+        ret2   = LSgetModelDouParameter(model.ptr, LS_DPARAM_MIP_INTTOL, pftol)
+        ret2   = LSgetModelDouParameter(model.ptr, LS_DPARAM_MIP_RELINTTOL, pfreltol)
+        nErrp == LSERR_INFO_NOT_AVAILABLE && return MOI.NO_SOLUTION
+        nErrp == 0 && primInf[1] <= pftol[1]  && primInf[1] <= pfreltol[1] && return MOI.FEASIBLE_POINT
+        nErrp == 0 && primInf[1] >  pftol[1]  && primInf[1] >  pfreltol[1] && (primStat[1] != LS_STATUS_INFEASIBLE || primStat[1] != LS_STATUS_LOCAL_INFEASIBLE) && return MOI.FEASIBLE_POINT
+        nErrp == 0 && primInf[1] >  pftol[1]  && primInf[1] >  pfreltol[1] && (primStat[1] == LS_STATUS_INFEASIBLE || primStat[1] == LS_STATUS_LOCAL_INFEASIBLE) && return MOI.INFEASIBLE_POINT
+    else
+        nErrp  = LSgetInfo(model.ptr, LS_IINFO_PRIMAL_STATUS, primStat)
+        ret1   = LSgetInfo(model.ptr, LS_DINFO_PINFEAS, primInf)
+        ret2   = LSgetModelDouParameter(model.ptr, LS_DPARAM_SOLVER_FEASTOL, pftol)
+        _check_ret(model, ret1)
+        _check_ret(model, ret2)
+        nErrp == LSERR_INFO_NOT_AVAILABLE && return MOI.NO_SOLUTION
+        nErrp == 0 && primInf[1] <= pftol[1] && return MOI.FEASIBLE_POINT
+        nErrp == 0 && primInf[1] > pftol[1] && (primStat[1] != LS_STATUS_INFEASIBLE || primStat[1] != LS_STATUS_LOCAL_INFEASIBLE) && return MOI.FEASIBLE_POINT
+        nErrp == 0 && primInf[1] > pftol[1] && (primStat[1] == LS_STATUS_INFEASIBLE || primStat[1] == LS_STATUS_LOCAL_INFEASIBLE) && return MOI.INFEASIBLE_POINT
+    end
+    return MOI.UNKNOWN_RESULT_STATUS
 end
 
 #=
@@ -1094,7 +1135,6 @@ function MOI.get(model::Optimizer, ::MOI.SimplexIterations)
     else
         ret = LSgetInfo(model.ptr, LS_IINFO_SIM_ITER, simItter)
     end
-    println(ret)
     _check_ret(model, ret)
     return simItter[1]
 end
