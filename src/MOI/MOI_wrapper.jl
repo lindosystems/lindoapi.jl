@@ -204,6 +204,8 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     next_row::Int
     primal_values::Vector{Cdouble}
     primal_retrived::Bool
+    dual_values::Vector{Cdouble}
+    dual_retrived::Bool
     reducedCosts::Vector{Cdouble}
     reducedCosts_retrived::Bool
     variable_info::CleverDicts.CleverDict{
@@ -250,6 +252,8 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
         model.next_row = 1
         model.primal_values = Vector{Cdouble}(undef,0)
         model.primal_retrived = false
+        model.dual_values = Vector{Cdouble}(undef,0)
+        model.dual_retrived = false
         model.reducedCosts = Vector{Cdouble}(undef,0)
         model.reducedCosts_retrived = false
         model.variable_info = CleverDicts.CleverDict{MOI.VariableIndex,_VariableInfo}(
@@ -593,24 +597,26 @@ end
 #=
 
  Function getPrimalSolution:
- Brief: Since the Lindo API can only quary for
-        all primal solution this a seprate function
-        is written to only call LSgetPrimalSolution (or LSgetMIPPrimalSolution if MIP )
-        once for a model. The values will be stored
-        in the model at model.primal_values
+ Brief: Attaches the primal solution to the model. This function is
+ called from MOI.get(model::Optimizer, attr::MOI.VariablePrimal, key::MOI.VariableIndex)
+ and MOI.get(model::Optimizer, ::MOI.PrimalStatus).
+ A flag model.primal_retrived is used to prevent unnecessary calls.
+
 
  Param model:
 
+ Returns: nErrpsol an error code to check if LSERR_INFO_NOT_AVAILABLE
 =#
 function _getPrimalSolution(model::Optimizer)
     nVars = model.next_column - 1
     resize!(model.primal_values, nVars)
     if model.use_LSsolveMIP == true
-        ret = LSgetMIPPrimalSolution(model.ptr, model.primal_values)
+        nErrpsol = LSgetMIPPrimalSolution(model.ptr, model.primal_values)
     else
-        ret = LSgetPrimalSolution(model.ptr, model.primal_values)
+        nErrpsol = LSgetPrimalSolution(model.ptr, model.primal_values)
     end
-    _check_ret(model, ret)
+    model.primal_retrived = true
+    return nErrpsol
 end
 
 #=
@@ -627,8 +633,7 @@ LSgetMIPPrimalSolution( pModel, primal)
 function MOI.get(model::Optimizer, attr::MOI.VariablePrimal, key::MOI.VariableIndex)
     # if there primal has not been saved to the model
     if model.primal_retrived == false
-        _getPrimalSolution(model)
-        model.primal_retrived = true
+        nErrpsol = _getPrimalSolution(model)
     end
     # to the index where the variable is stored
     info = _info(model, key)
@@ -689,6 +694,29 @@ function MOI.get(model::Optimizer, attr::MOI.ConstraintDual,
 end
 
 #=
+
+ Function _getDualSolution
+ Brief: Attaches the dual solution to the model. This function is
+ called from MOI.get(model::Optimizer, attr::MOI.NLPBlockDual)
+ and MOI.get(model::Optimizer, ::MOI.DualStatus).
+ A flag model.dual_retrived is used to prevent unnecessary calls.
+ Param model:
+
+ Returns: nErrpsol an error code to check if LSERR_INFO_NOT_AVAILABLE
+=#
+function _getDualSolution(model::Optimizer)
+    ncons = length(model.nlp_data.constraint_bounds)
+    resize!(model.dual_values, ncons)
+    if model.use_LSsolveMIP == true
+        nErrpsol = LSgetMIPDualSolution(model.ptr, model.dual_values)
+    else
+        nErrpsol = LSgetDualSolution(model.ptr, model.dual_values)
+    end
+    model.dual_retrived = true
+    return nErrpsol
+end
+
+#=
     Function MOI.get // MOI.NLPBlockDual
 
     Brief: gets dual prices for each constraint in the NLPBlock.
@@ -699,15 +727,10 @@ end
     Returns padDual: The Lagrange multipliers
 =#
 function MOI.get(model::Optimizer, attr::MOI.NLPBlockDual)
-    ncons = length(model.nlp_data.constraint_bounds)
-    padDual =  Vector{Cdouble}(undef, ncons)
-    if model.use_LSsolveMIP == true
-        ret = LSgetMIPDualSolution(model.ptr, padDual)
-    else
-        ret = LSgetDualSolution(model.ptr, padDual)
+    if model.dual_retrived == false
+        nErrpsol = _getDualSolution(model::Optimizer)
     end
-    _check_ret(model, ret)
-    return padDual
+    return model.dual_values
 end
 #=
 
@@ -732,6 +755,17 @@ function MOI.get(model::Optimizer, attr::MOI.DualObjectiveValue)
     return dualObj[1]
 end
 
+#=
+
+ Function MOI.get: // Lindoapi.Slack_or_Surplus
+ Brief: Gets a vector of slacks using LSgetMIPSlacks or LSgetSlacks
+ Param model:
+ Param attar: Sending Lindoapi.Slack_or_Surplus() will let the MOI know what getter is being called.
+
+ Returns: a vector of slacks
+ TODO: Model this after MOI.VariablePrimal returning a single slack
+     with the option of broadcasting to get multiple
+=#
 function MOI.get(model::Optimizer, attr::Slack_or_Surplus)
     slack = Vector{Cdouble}(undef, length(model.nlp_data.constraint_bounds))
     if model.use_LSsolveMIP == true
@@ -914,7 +948,7 @@ end
 function MOI.get(model::Optimizer, name::Param
     )where {Param <: Union{LindoIntParam, LindoDouParam}}
     if typeof(name) == LindoIntParam
-        param_ptr = Int[-1]
+        param_ptr = Int32[-1]
         ret = LSgetModelIntParameter(model.ptr, name.param, param_ptr)
     else
         param_ptr = Cdouble[-1.0]
@@ -1012,66 +1046,95 @@ function MOI.get(model::Optimizer, ::MOI.RawStatusString)
 end
 #=
     Function: MOI.get // ::MOI.DualStatus
-    Brief: Uses LSgetInfo to get the dual status
+    Brief: Determines the MOI.DualStatus of a model using
+    the model’s termination status, dual status, dual infeasibility, and tolerance.
     then returns the MOI.ResultStatusCode
 
-    TODO: Convert dualStatus to ResultStatusCode
 =#
 function MOI.get(model::Optimizer, ::MOI.DualStatus)
-    dualStatus = Int32[-1]
-    ret = LSgetInfo(model.ptr, LS_IINFO_DUAL_STATUS, dualStatus)
-    return MOI.FEASIBLE_POINT
+
+    moi_termination = MOI.get(model, MOI.TerminationStatus())
+    moi_termination == MOI.INFEASIBLE_OR_UNBOUNDED || moi_termination == MOI.INFEASIBLE && return MOI.NO_SOLUTION
+
+    nErrpsol   = _getDualSolution(model::Optimizer)
+
+    if model.use_LSsolveMIP == true
+        dualSolution_on = Int32[0]
+        LSgetModelIntParameter(model.ptr, LS_IPARAM_MIP_DUAL_SOLUTION, dualSolution_on)
+        if dualSolution_on[1] == 0
+            return MOI.NO_SOLUTION
+        else
+            nErrpsol == LSERR_INFO_NOT_AVAILABLE && return MOI.NO_SOLUTION
+            nErrpsol != LSERR_INFO_NOT_AVAILABLE && return MOI.FEASIBLE_POINT
+        end
+
+    else
+        dualStat =   Int32[-1]
+        dualInf  = Cdouble[-1]
+        dftol    = Cdouble[-1]
+
+        nErrd  = LSgetInfo(model.ptr, LS_DINFO_DINFEAS, dualInf)
+        ret1   = LSgetInfo(model.ptr, LS_IINFO_DUAL_STATUS, dualStat)
+        ret2   = LSgetModelDouParameter(model.ptr, LS_DPARAM_SOLVER_OPTTOL, dftol)
+        _check_ret(model, ret1);_check_ret(model, ret2)
+
+        nErrpsol == LSERR_INFO_NOT_AVAILABLE && return MOI.NO_SOLUTION
+        if nErrd == 0
+            dualInf[1] <= dftol[1] && return MOI.FEASIBLE_POINT
+            dualInf[1] >  dftol[1] && (dualStat[1] != LS_STATUS_INFEASIBLE || dualStat[1] != LS_STATUS_LOCAL_INFEASIBLE) && return MOI.FEASIBLE_POINT
+            dualInf[1] >  dftol[1] && (dualStat[1] == LS_STATUS_INFEASIBLE || dualStat[1] == LS_STATUS_LOCAL_INFEASIBLE) && return MOI.INFEASIBLE_POINT
+        end
+
+    end
+
+    return MOI.UNKNOWN_RESULT_STATUS
 end
 
 #=
     Function: MOI.get // ::MOI.PrimalStatus
-    Brief: Uses LSgetInfo to get the primal status
+    Brief: Determinds the MOI.PrimalStatus of a model using
+    the models termination status, dual status, dual infeasibility, and tollerence.
     then returns the MOI.ResultStatusCode
 
-    TODO: Convert primalStatus to ResultStatusCode
-
-
-     mxlindo('LSgetModelDouParameter',iModel, LS_DPARAM_SOLVER_FEASTOL);
-
-
-     For MIP models, the following parameters will have to be used or taken into account
-   LS_IINFO_MIP_STATUS                      = 11300,
-   LS_DINFO_MIP_PFEAS                       = 11353,
-   LS_DINFO_MIP_INTPFEAS                    = 11354,
-Note, pftol applies to MIP constraints as well, but the following is needed for integer feasibility
-   LS_DPARAM_MIP_INTTOL                     = 5305,
-   LS_DPARAM_MIP_RELINTTOL                  = 5306,
 =#
 function MOI.get(model::Optimizer, ::MOI.PrimalStatus)
 
     moi_termination = MOI.get(model, MOI.TerminationStatus())
     moi_termination == MOI.INFEASIBLE_OR_UNBOUNDED || moi_termination == MOI.INFEASIBLE && return MOI.NO_SOLUTION
 
-    primStat   = Int32[-1]
+    primStat   =   Int32[-1]
     primInf    = Cdouble[-1]
     primIntInf = Cdouble[-1]
     pftol      = Cdouble[-1]
     pfreltol   = Cdouble[-1]
-    if model.use_LSsolveMIP
-        nErrp  = LSgetInfo(model.ptr, LS_IINFO_MIP_STATUS, primStat)
-        ret1   = LSgetInfo(model.ptr, LS_DINFO_MIP_PFEAS, primInf)
-        ret2   = LSgetInfo(model.ptr, LS_DINFO_MIP_INTPFEAS, pftol)
+    nErrpsol   = _getPrimalSolution(model)
+
+    if model.use_LSsolveMIP == true
+        nErrp  = LSgetInfo(model.ptr, LS_DINFO_MIP_PFEAS, primInf)
+        ret1   = LSgetInfo(model.ptr, LS_IINFO_MIP_STATUS, primStat)
         ret2   = LSgetModelDouParameter(model.ptr, LS_DPARAM_MIP_INTTOL, pftol)
-        ret2   = LSgetModelDouParameter(model.ptr, LS_DPARAM_MIP_RELINTTOL, pfreltol)
-        nErrp == LSERR_INFO_NOT_AVAILABLE && return MOI.NO_SOLUTION
-        nErrp == 0 && primInf[1] <= pftol[1]  && primInf[1] <= pfreltol[1] && return MOI.FEASIBLE_POINT
-        nErrp == 0 && primInf[1] >  pftol[1]  && primInf[1] >  pfreltol[1] && (primStat[1] != LS_STATUS_INFEASIBLE || primStat[1] != LS_STATUS_LOCAL_INFEASIBLE) && return MOI.FEASIBLE_POINT
-        nErrp == 0 && primInf[1] >  pftol[1]  && primInf[1] >  pfreltol[1] && (primStat[1] == LS_STATUS_INFEASIBLE || primStat[1] == LS_STATUS_LOCAL_INFEASIBLE) && return MOI.INFEASIBLE_POINT
+        ret3   = LSgetModelDouParameter(model.ptr, LS_DPARAM_MIP_RELINTTOL, pfreltol)
+        _check_ret(model, ret1);_check_ret(model, ret2);_check_ret(model, ret3)
+
+        nErrpsol == LSERR_INFO_NOT_AVAILABLE && return MOI.NO_SOLUTION
+        if nErrp == 0
+            primInf[1] <= pftol[1]  && primInf[1] <= pfreltol[1] && return MOI.FEASIBLE_POINT
+            primInf[1] >  pftol[1]  && primInf[1] >  pfreltol[1] && (primStat[1] != LS_STATUS_INFEASIBLE || primStat[1] != LS_STATUS_LOCAL_INFEASIBLE) && return MOI.FEASIBLE_POINT
+            primInf[1] >  pftol[1]  && primInf[1] >  pfreltol[1] && (primStat[1] == LS_STATUS_INFEASIBLE || primStat[1] == LS_STATUS_LOCAL_INFEASIBLE) && return MOI.INFEASIBLE_POINT
+        end
+
     else
-        nErrp  = LSgetInfo(model.ptr, LS_IINFO_PRIMAL_STATUS, primStat)
-        ret1   = LSgetInfo(model.ptr, LS_DINFO_PINFEAS, primInf)
+        nErrp  = LSgetInfo(model.ptr, LS_DINFO_PINFEAS, primInf)
+        ret1   = LSgetInfo(model.ptr, LS_IINFO_PRIMAL_STATUS, primStat)
         ret2   = LSgetModelDouParameter(model.ptr, LS_DPARAM_SOLVER_FEASTOL, pftol)
-        _check_ret(model, ret1)
-        _check_ret(model, ret2)
-        nErrp == LSERR_INFO_NOT_AVAILABLE && return MOI.NO_SOLUTION
-        nErrp == 0 && primInf[1] <= pftol[1] && return MOI.FEASIBLE_POINT
-        nErrp == 0 && primInf[1] > pftol[1] && (primStat[1] != LS_STATUS_INFEASIBLE || primStat[1] != LS_STATUS_LOCAL_INFEASIBLE) && return MOI.FEASIBLE_POINT
-        nErrp == 0 && primInf[1] > pftol[1] && (primStat[1] == LS_STATUS_INFEASIBLE || primStat[1] == LS_STATUS_LOCAL_INFEASIBLE) && return MOI.INFEASIBLE_POINT
+        _check_ret(model, ret1);_check_ret(model, ret2)
+
+        nErrpsol == LSERR_INFO_NOT_AVAILABLE && return MOI.NO_SOLUTION
+        if nErrp == 0
+            primInf[1] <= pftol[1] && return MOI.FEASIBLE_POINT
+            primInf[1] > pftol[1] && (primStat[1] != LS_STATUS_INFEASIBLE || primStat[1] != LS_STATUS_LOCAL_INFEASIBLE) && return MOI.FEASIBLE_POINT
+            primInf[1] > pftol[1] && (primStat[1] == LS_STATUS_INFEASIBLE || primStat[1] == LS_STATUS_LOCAL_INFEASIBLE) && return MOI.INFEASIBLE_POINT
+        end
     end
     return MOI.UNKNOWN_RESULT_STATUS
 end
