@@ -14,7 +14,7 @@ Purpose:
  To run sample
      include("/PathToUse/ex_gop.jl")
 
-To update to the most current version of Lindoapi.jl
+To update to the most current version of Ipopt.jl
      Run in REPL:
          using Pkg
          Pkg.add(url="https://github.com/lindosystems/lindoapi.jl")
@@ -25,17 +25,18 @@ To update to the most current version of Lindoapi.jl
 using Lindoapi
 using JuMP
 
-
+use_global = true
 
 model = Model(Lindoapi.Optimizer)
-set_optimizer_attribute(model,"use_Global",true)
+set_optimizer_attribute(model, "use_Global", use_global)
 
 @variable(model, -10 <= x[1:4] <= 10)
 
 @NLobjective(model,
              Min,
-             100*(x[1]^2 - x[2])^2 + (x[1] - 1)^2 + (x[3] - 1)^2 + 90*(x[3] - x[4])^2
-              + 10.1*((x[2] - 1)^2 +(x[4] -1)^2) + 19.8*(x[2] - 1)*(x[4] - 1)
+             100*(x[1]^2 - x[2])^2 + (x[1] - 1)^2 + (x[3] - 1)^2
+             + 90*(x[3] - x[4])^2  + 10.1*((x[2] - 1)^2 +(x[4] -1)^2)
+             + 19.8*(x[2] - 1)*(x[4] - 1)
              )
 
 optimize!(model)

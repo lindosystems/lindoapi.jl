@@ -9,8 +9,9 @@ in an increasing order.
 
 Max A(n) = 1/2 * ∑_{i ∈ 1:nᵥ-1} r_{i+1}r_{i}sin(θ_{i+1} - θ_{i})
 Subject to
-    r_{i}^2 + r_{j}^2 - 2r_{i}r_{j}cos(θ_{i} - θ_{j}) ≦ 1           1 ≦ i ≦ nᵥ  i < j ≦ nᵥ
-                                                θ_{i} ≦ θ_{i+1}     1 ≦ i ≦ nᵥ
+    r_{i}^2 + r_{j}^2 - 2r_{i}r_{j}cos(θ_{i} - θ_{j}) ≦ 1           1 ≦ i ≦ nᵥ
+                                                                    i < j ≦ nᵥ
+                        θ_{i} ≦ θ_{i+1}                             1 ≦ i ≦ nᵥ
                     θ_{i} ∈ [0, π], r_{i} ≧ 0                       1 ≦ i ≦ nᵥ
 
 
@@ -44,12 +45,14 @@ using Printf
 # number of vertices
 # n_v = 8
 # Get n_v from user input
-print("Enter n number of vertices: ")
-n_v = parse(Int,readline())
-println()
+
+use_global = true
+n_v = 4
+
 
 # initialize an empty model
 model = Model( Lindoapi.Optimizer)
+set_optimizer_attribute(model,"use_Global",use_global)
 # make the two variable arrays of radius and theta
 # with the constraints
 @variable(model, r[1:n_v] >= 0)
@@ -93,7 +96,8 @@ println("Polar and Rectangular Coordinates")
 println("==============================================")
 println("   (r, θ) \t\t\t (x, y)")
 for i in 1:n_v
-    @printf("%d: (%.3f, %.3f) \t\t (%.3f, %.3f)\n", i, r_star[i], θ_star[i], x[i], y[i])
+    @printf("%d: (%.3f, %.3f) \t\t (%.3f, %.3f)\n",
+     i, r_star[i], θ_star[i], x[i], y[i])
 end
 println("==============================================")
 
