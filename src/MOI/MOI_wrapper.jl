@@ -196,6 +196,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     usr_set_GOPcbfunc::Bool
     use_LSsolveMIP::Bool
     use_Global::Bool
+    solverMethod::Int32
     nlp_data::MOI.NLPBlockData
     load_index::Int
     objective_sense::MOI.OptimizationSense
@@ -233,8 +234,13 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     =#
     function Optimizer(env::Union{Nothing, LSenv} = nothing,)
         model = new()
-        model.ptr = C_NULL
+
         model.env = env === nothing ? Env() : env
+        ret = Int32[0]
+        model.ptr  = LScreateModel(model.env, ret)
+        model.env.attached_models += 1
+        _check_ret(model, ret[1])
+
         model.silent = false
         model.objective_type = _SCALAR_AFFINE
         model.objective_function = nothing
@@ -245,6 +251,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
         model.usr_set_GOPcbfunc = false
         model.use_LSsolveMIP = false
         model.use_Global = false
+        model.solverMethod = LS_METHOD_FREE
         model.load_index = 0
         model.objective_sense = MOI.MIN_SENSE
         model.lindoTerminationStatus = LS_STATUS_UNLOADED
@@ -260,7 +267,6 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
             _HASH,
             _INVERSE_HASH,
         )
-        MOI.empty!(model)
         finalizer(model) do m
             ret = LSdeleteModel(m.ptr)
             _check_ret(m,ret)
@@ -309,24 +315,7 @@ function MOI.empty!(model::Optimizer)
     remove all variables, constraints, and model attributes,
     but not Optimizer attributes
     """
-    if model.ptr != C_NULL
-        ret = LSdeleteModel(model.ptr)
-        _check_ret(model,ret)
-        model.env.attached_models -= 1
-    end
 
-    ret = Int32[0]
-    model.ptr  = LScreateModel(model.env, ret)
-    _check_ret(model, ret[1])
-    model.env.attached_models += 1
-    model.next_column = 1
-    model.primal_values = Vector{Cdouble}(undef,0)
-    model.primal_retrived = false
-    model.load_index = 0
-    model.objective_type = _SCALAR_AFFINE
-    model.objective_function = nothing
-    model.loaded = false
-    empty!(model.variable_info)
 end
 
 #=
@@ -556,14 +545,13 @@ function MOI.optimize!(model::Optimizer)
     if model.silent == false
         _setSolverCallback(model)
     end
-
     pnStatus = Int32[-1]
     if model.use_Global == true
         ret = LSsolveGOP(model.ptr, pnStatus)
     elseif model.use_LSsolveMIP == true
         ret = LSsolveMIP(model.ptr, pnStatus)
     else
-        ret = LSoptimize(model.ptr, LS_METHOD_FREE, pnStatus)
+        ret = LSoptimize(model.ptr, model.solverMethod, pnStatus)
     end
     _check_ret(model, ret)
     model.lindoTerminationStatus = pnStatus[1]
@@ -820,8 +808,10 @@ MOI.supports(::Optimizer, ::MOI.ResultCount) = true
 MOI.supports(::Optimizer, ::MOI.PrimalStatus) = true
 MOI.supports(::Optimizer, ::MOI.DualStatus) = true
 MOI.supports(::Optimizer, ::MOI.ConstraintDual) = true
+MOI.supports(::Optimizer, ::MOI.ObjectiveFunctionType) = true
 MOI.supports(::Optimizer, ::MOI.VariableName, ::Type{MOI.VariableIndex}) = true
 
+MOI.get(::Optimizer, ::MOI.ObjectiveFunctionType) = MOI.SingleVariable
 #=
 
  Function: MOI.supports_constraint
@@ -889,9 +879,9 @@ MOI.get(::Optimizer, ::MOI.ResultCount) = 1
 
 =#
 function MOI.get(model::Optimizer, raw::MOI.RawParameter)
-    if raw.name == "use_Global"
-        return model.use_Global
-    end
+    raw.name == "use_Global"   && return model.use_Global
+    raw.name == "silent"       && return model.silent
+    raw.name == "solverMethod" && return model.solverMethod
     println("$(raw.name): Not supported")
     return false
 end
@@ -920,16 +910,34 @@ end
 
 #=
 
+• LS_METHOD_FREE: 0,
+• LS_METHOD_PSIMPLEX: 1,
+• LS_METHOD_DSIMPLEX: 2,
+• LS_METHOD_BARRIER: 3,
+• LS_METHOD_NLP: 4.
+
+=#
+function MOI.set(model::Optimizer, raw::MOI.RawParameter, value::Int32)
+    if raw.name == "solverMethod"
+        model.solverMethod = value
+    else
+        println("$(raw.name): Not supported")
+    end
+    return
+end
+
+#=
+
     Function: MOI set LindoXXXParam()
     Brief: This function sets double and integer model parameters
     with by calling the API directly.
     Example: from JuMP
     set_optimizer_attribute(model,Lindoapi.LindoDouParam(Lindoapi.LS_DPARAM_CALLBACKFREQ),0.5)
 =#
-function MOI.set(model::Optimizer, name::Param, value::Float64
+function MOI.set(model::Optimizer, name::Param, value
     )where {Param <: Union{LindoIntParam, LindoDouParam}}
     if typeof(name) == LindoIntParam
-        ret = LSsetModelIntParameter(model.ptr, name.param, Cdouble(value))
+        ret = LSsetModelIntParameter(model.ptr, name.param, Int32(value))
     else
         ret = LSsetModelDouParameter(model.ptr, name.param, Cdouble(value))
     end
@@ -1323,4 +1331,3 @@ include("MOI_expression_tree.jl")
 include("MOI_var.jl")
 include("MOI_Callback.jl")
 include("supportedOperators.jl")
-include("paramDict.jl")
