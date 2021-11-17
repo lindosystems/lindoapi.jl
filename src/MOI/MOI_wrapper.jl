@@ -1175,19 +1175,21 @@ end
     Brief: Calls LSgetInfo to get the number of barrier iterations
 
     Returns: number of barrier iterations
+
+    TODO: find why solution_summary swaps barrier with simplex
 =#
-function MOI.get(model::Optimizer, ::MOI.BarrierIterations)
-    barItter = Int32[0]
-    if model.use_Global == true
-        ret = LSgetInfo(model.ptr, LS_IINFO_GOP_BAR_ITER, barItter)
-    elseif model.use_LSsolveMIP == true
-        ret = LSgetInfo(model.ptr, LS_IINFO_MIP_BAR_ITER, barItter)
-    else
-        ret = LSgetInfo(model.ptr, LS_IINFO_BAR_ITER, barItter)
-    end
-    _check_ret(model, ret)
-    return barItter[1]
-end
+# function MOI.get(model::Optimizer, ::MOI.BarrierIterations)
+#     barItter = Int32[0]
+#     if model.use_Global == true
+#         ret = LSgetInfo(model.ptr, LS_IINFO_GOP_BAR_ITER, barItter)
+#     elseif model.use_LSsolveMIP == true
+#         ret = LSgetInfo(model.ptr, LS_IINFO_MIP_BAR_ITER, barItter)
+#     else
+#         ret = LSgetInfo(model.ptr, LS_IINFO_BAR_ITER, barItter)
+#     end
+#     _check_ret(model, ret)
+#     return nothing
+# end
 
 #=
 
@@ -1197,18 +1199,18 @@ end
 
     Returns: number of simplex iterations
 =#
-function MOI.get(model::Optimizer, ::MOI.SimplexIterations)
-    simItter = Int32[0]
-    if model.use_Global == true
-        ret = LSgetInfo(model.ptr, LS_IINFO_GOP_SIM_ITER, simItter)
-    elseif model.use_LSsolveMIP == true
-        ret = LSgetInfo(model.ptr, LS_IINFO_MIP_SIM_ITER, simItter)
-    else
-        ret = LSgetInfo(model.ptr, LS_IINFO_SIM_ITER, simItter)
-    end
-    _check_ret(model, ret)
-    return simItter[1]
-end
+# function MOI.get(model::Optimizer, ::MOI.SimplexIterations)
+#     simItter = Int32[0]
+#     if model.use_Global == true
+#         ret = LSgetInfo(model.ptr, LS_IINFO_GOP_SIM_ITER, simItter)
+#     elseif model.use_LSsolveMIP == true
+#         ret = LSgetInfo(model.ptr, LS_IINFO_MIP_SIM_ITER, simItter)
+#     else
+#         ret = LSgetInfo(model.ptr, LS_IINFO_SIM_ITER, simItter)
+#     end
+#     _check_ret(model, ret)
+#     return nothing
+# end
 
 #=
 
@@ -1221,14 +1223,14 @@ end
     TODO: NodeCount is the number of nodes explored
      LS_IINFO_MIP_ACTIVENODES is the remaining nodes to be explored
 =#
-function MOI.get(model::Optimizer, ::MOI.NodeCount)
-    nodeCount = Int32[0]
-    if model.use_LSsolveMIP == true
-        ret = LSgetInfo(model.ptr, LS_IINFO_MIP_BRANCHCOUNT, nodeCount)
-        _check_ret(model, ret)
-    end
-    return nodeCount[1]
-end
+# function MOI.get(model::Optimizer, ::MOI.NodeCount)
+#     nodeCount = Int32[0]
+#     if model.use_LSsolveMIP == true
+#         ret = LSgetInfo(model.ptr, LS_IINFO_MIP_BRANCHCOUNT, nodeCount)
+#         _check_ret(model, ret)
+#     end
+#     return nothing
+# end
 #=
 
 
