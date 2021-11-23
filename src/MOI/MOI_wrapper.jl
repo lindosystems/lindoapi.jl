@@ -653,7 +653,7 @@ end
 
  Function MOI.get //  attr::MOI.ConstraintDual, index::Index
 
- Brief: This function returns the reduced cost of a variable.
+ Brief: These functions return the reduced cost of a variable.
     if the reduced costs have not been retrived _getReducedCosts is called.
 
  Param model:
@@ -667,18 +667,57 @@ end
  JuMP Sample: JuMP.reduced_cost(x[1])
 =#
 function MOI.get(model::Optimizer, attr::MOI.ConstraintDual,
-    index::Index) where Index <: Union{
-    MOI.ConstraintIndex{MOI.SingleVariable, MOI.EqualTo{Float64}},
-    MOI.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}},
-    MOI.ConstraintIndex{MOI.SingleVariable, MOI.GreaterThan{Float64}},
-    MOI.ConstraintIndex{MOI.SingleVariable, MOI.ZeroOne},
-    MOI.ConstraintIndex{MOI.SingleVariable, MOI.Integer},
-    }
+    index::MOI.ConstraintIndex{MOI.SingleVariable, MOI.EqualTo{Float64}})
+    sense = MOI.get(model, MOI.ObjectiveSense())
     if model.reducedCosts_retrived == false
         _getReducedCosts(model)
         model.reducedCosts_retrived = true
     end
     return model.reducedCosts[index.value]
+end
+
+function MOI.get(model::Optimizer, attr::MOI.ConstraintDual,
+    index::MOI.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}})
+    sense = MOI.get(model, MOI.ObjectiveSense())
+    if model.reducedCosts_retrived == false
+        _getReducedCosts(model)
+        model.reducedCosts_retrived = true
+    end
+    if sense == MOI.MIN_SENSE
+        if model.reducedCosts[index.value] <= 0.0
+            return model.reducedCosts[index.value]
+        else
+            return 0.0
+        end
+    else # MOI.MAX_SENSE
+        if model.reducedCosts[index.value] >= 0.0
+            return model.reducedCosts[index.value]
+        else
+            return 0.0
+        end
+    end
+end
+
+function MOI.get(model::Optimizer, attr::MOI.ConstraintDual,
+    index::MOI.ConstraintIndex{MOI.SingleVariable, MOI.GreaterThan{Float64}})
+    sense = MOI.get(model, MOI.ObjectiveSense())
+    if model.reducedCosts_retrived == false
+        _getReducedCosts(model)
+        model.reducedCosts_retrived = true
+    end
+    if sense == MOI.MIN_SENSE
+        if model.reducedCosts[index.value] >= 0.0
+            return model.reducedCosts[index.value]
+        else
+            return 0.0
+        end
+    else # MOI.MAX_SENSE
+        if model.reducedCosts[index.value] <= 0.0
+            return model.reducedCosts[index.value]
+        else
+            return 0.0
+        end
+    end
 end
 
 #=
@@ -1010,20 +1049,20 @@ end
 
 =#
 function MOI.get(model::Optimizer, attr::MOI.TerminationStatus)
-    model.lindoTerminationStatus == LS_STATUS_OPTIMAL && return MOI.OPTIMAL
-    model.lindoTerminationStatus == LS_STATUS_BASIC_OPTIMAL && return MOI.OPTIMAL
-    model.lindoTerminationStatus == LS_STATUS_INFEASIBLE && return MOI.INFEASIBLE
-    model.lindoTerminationStatus == LS_STATUS_UNBOUNDED && return MOI.INFEASIBLE_OR_UNBOUNDED
-    model.lindoTerminationStatus == LS_STATUS_FEASIBLE && return MOI.ALMOST_LOCALLY_SOLVED
-    model.lindoTerminationStatus == LS_STATUS_INFORUNB && return MOI.INFEASIBLE_OR_UNBOUNDED
-    model.lindoTerminationStatus == LS_STATUS_NEAR_OPTIMAL && return MOI.ALMOST_OPTIMAL
-    model.lindoTerminationStatus == LS_STATUS_LOCAL_OPTIMAL && return MOI.LOCALLY_SOLVED
+    model.lindoTerminationStatus == LS_STATUS_OPTIMAL          && return MOI.OPTIMAL
+    model.lindoTerminationStatus == LS_STATUS_BASIC_OPTIMAL    && return MOI.OPTIMAL
+    model.lindoTerminationStatus == LS_STATUS_INFEASIBLE       && return MOI.INFEASIBLE
+    model.lindoTerminationStatus == LS_STATUS_UNBOUNDED        && return MOI.INFEASIBLE_OR_UNBOUNDED
+    model.lindoTerminationStatus == LS_STATUS_FEASIBLE         && return MOI.ALMOST_LOCALLY_SOLVED
+    model.lindoTerminationStatus == LS_STATUS_INFORUNB         && return MOI.INFEASIBLE_OR_UNBOUNDED
+    model.lindoTerminationStatus == LS_STATUS_NEAR_OPTIMAL     && return MOI.ALMOST_OPTIMAL
+    model.lindoTerminationStatus == LS_STATUS_LOCAL_OPTIMAL    && return MOI.LOCALLY_SOLVED
     model.lindoTerminationStatus == LS_STATUS_LOCAL_INFEASIBLE && return MOI.LOCALLY_INFEASIBLE
-    model.lindoTerminationStatus == LS_STATUS_CUTOFF && return MOI.OBJECTIVE_LIMIT
-    model.lindoTerminationStatus == LS_STATUS_NUMERICAL_ERROR && return MOI.NUMERICAL_ERROR
-    model.lindoTerminationStatus == LS_STATUS_UNKNOWN && return MOI.OTHER_ERROR
-    model.lindoTerminationStatus == LS_STATUS_UNLOADED && return MOI.OPTIMIZE_NOT_CALLED
-    model.lindoTerminationStatus == LS_STATUS_LOADED && return MOI.OPTIMIZE_NOT_CALLED
+    model.lindoTerminationStatus == LS_STATUS_CUTOFF           && return MOI.OBJECTIVE_LIMIT
+    model.lindoTerminationStatus == LS_STATUS_NUMERICAL_ERROR  && return MOI.NUMERICAL_ERROR
+    model.lindoTerminationStatus == LS_STATUS_UNKNOWN          && return MOI.OTHER_ERROR
+    model.lindoTerminationStatus == LS_STATUS_UNLOADED         && return MOI.OPTIMIZE_NOT_CALLED
+    model.lindoTerminationStatus == LS_STATUS_LOADED           && return MOI.OPTIMIZE_NOT_CALLED
     return MOI.OTHER_ERROR
 end
 
@@ -1036,20 +1075,20 @@ end
 
 =#
 function MOI.get(model::Optimizer, ::MOI.RawStatusString)
-    model.lindoTerminationStatus == LS_STATUS_OPTIMAL && return "LS_STATUS_OPTIMAL"
-    model.lindoTerminationStatus == LS_STATUS_BASIC_OPTIMAL && return "LS_STATUS_BASIC_OPTIMAL"
-    model.lindoTerminationStatus == LS_STATUS_INFEASIBLE && return "LS_STATUS_INFEASIBLE"
-    model.lindoTerminationStatus == LS_STATUS_UNBOUNDED && return "LS_STATUS_UNBOUNDED"
-    model.lindoTerminationStatus == LS_STATUS_FEASIBLE && return "LS_STATUS_FEASIBLE"
-    model.lindoTerminationStatus == LS_STATUS_INFORUNB && return "LS_STATUS_INFORUNB "
-    model.lindoTerminationStatus == LS_STATUS_NEAR_OPTIMAL && return "LS_STATUS_NEAR_OPTIMAL"
-    model.lindoTerminationStatus == LS_STATUS_LOCAL_OPTIMAL && return "LS_STATUS_LOCAL_OPTIMAL"
+    model.lindoTerminationStatus == LS_STATUS_OPTIMAL          && return "LS_STATUS_OPTIMAL"
+    model.lindoTerminationStatus == LS_STATUS_BASIC_OPTIMAL    && return "LS_STATUS_BASIC_OPTIMAL"
+    model.lindoTerminationStatus == LS_STATUS_INFEASIBLE       && return "LS_STATUS_INFEASIBLE"
+    model.lindoTerminationStatus == LS_STATUS_UNBOUNDED        && return "LS_STATUS_UNBOUNDED"
+    model.lindoTerminationStatus == LS_STATUS_FEASIBLE         && return "LS_STATUS_FEASIBLE"
+    model.lindoTerminationStatus == LS_STATUS_INFORUNB         && return "LS_STATUS_INFORUNB "
+    model.lindoTerminationStatus == LS_STATUS_NEAR_OPTIMAL     && return "LS_STATUS_NEAR_OPTIMAL"
+    model.lindoTerminationStatus == LS_STATUS_LOCAL_OPTIMAL    && return "LS_STATUS_LOCAL_OPTIMAL"
     model.lindoTerminationStatus == LS_STATUS_LOCAL_INFEASIBLE && return "LS_STATUS_LOCAL_INFEASIBLE"
-    model.lindoTerminationStatus == LS_STATUS_CUTOFF && return "LS_STATUS_CUTOFF"
-    model.lindoTerminationStatus == LS_STATUS_NUMERICAL_ERROR && return "LS_STATUS_NUMERICAL_ERROR"
-    model.lindoTerminationStatus == LS_STATUS_UNKNOWN && return "LS_STATUS_UNKNOWN"
-    model.lindoTerminationStatus == LS_STATUS_UNLOADED && return "LS_STATUS_UNLOADED"
-    model.lindoTerminationStatus == LS_STATUS_LOADED && return "LS_STATUS_LOADED"
+    model.lindoTerminationStatus == LS_STATUS_CUTOFF           && return "LS_STATUS_CUTOFF"
+    model.lindoTerminationStatus == LS_STATUS_NUMERICAL_ERROR  && return "LS_STATUS_NUMERICAL_ERROR"
+    model.lindoTerminationStatus == LS_STATUS_UNKNOWN          && return "LS_STATUS_UNKNOWN"
+    model.lindoTerminationStatus == LS_STATUS_UNLOADED         && return "LS_STATUS_UNLOADED"
+    model.lindoTerminationStatus == LS_STATUS_LOADED           && return "LS_STATUS_LOADED"
     return "LS_STATUS_UNKNOWN"
 end
 #=
@@ -1156,12 +1195,14 @@ end
     Returns: solve time
 =#
 function MOI.get(model::Optimizer, ::MOI.SolveTime)
-    solveTime = Int32[0]
     if model.use_Global == true
+        solveTime = Int32[0]
         ret = LSgetInfo(model.ptr, LS_IINFO_GOP_TOT_TIME, solveTime)
     elseif model.use_LSsolveMIP == true
+        solveTime = Cdouble[0]
         ret = LSgetInfo(model.ptr, LS_DINFO_MIP_TOT_TIME, solveTime)
     else
+        solveTime = Int32[0]
         ret = LSgetInfo(model.ptr, LS_IINFO_ELAPSED_TIME, solveTime)
     end
     _check_ret(model, ret)
