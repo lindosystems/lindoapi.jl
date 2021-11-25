@@ -25,7 +25,7 @@ mutable struct jlLindoData_t
     _cbEnvLogFunc::Union{Nothing, Function}
     _funCalcFunc::Union{Nothing, Function}
     _gradCalcFunc::Union{Nothing, Function}
-    _cbData::Union{Nothing, Dict{String, String}}
+    _cbData::Union{Nothing, Dict{String, Any}}
 
 #=
  Function: jlLindoData_t
@@ -100,7 +100,6 @@ end
 
 """
 function relayCallback(pModel, nLocation, uData)
-    println("nLocation")
     uData._cbFunc(pModel, nLocation ,uData._cbData)
 end
 
