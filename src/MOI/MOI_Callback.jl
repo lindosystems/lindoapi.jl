@@ -15,15 +15,6 @@ using Printf
 
 
 #=
- User pass through data for callback functions.
- Currently There is no way for a user to access this uDict to edit
- and the none of the call back function are printing any of its data.
-=#
-uDict = Dict(
-"Prefix" => "Lindo API",
-"Postfix" => "...",)
-
-#=
 
  Function: logFunc
  Brief:    The subroutine passed as an argument to LSsetModelLogfunc.
@@ -65,16 +56,16 @@ end
       MOI set function can be used.
 =#
 mutable struct LogFunction            <: MOI.AbstractCallback
-    uData::Dict{Any,Any}
+    uData::Dict{String,Any}
 end
 mutable struct CallbackFunction       <: MOI.AbstractCallback
-    uData::Dict{Any,Any}
+    uData::Dict{String,Any}
 end
 mutable struct GOPCallbackFunction    <: MOI.AbstractCallback
-    uData::Dict{Any,Any}
+    uData::Dict{String,Any}
 end
 mutable struct MIPCallbackFunction    <: MOI.AbstractCallback
-    uData::Dict{Any,Any}
+    uData::Dict{String,Any}
 end
 
 #=
@@ -87,28 +78,32 @@ end
 =#
 function MOI.set(model::Optimizer, cb_data::LogFunction, f::Function)
     model.usr_set_logfunc = true
-    ret = LSsetModelLogfunc(model.ptr, f, cb_data.uData)
+    model.uDict = cb_data.uData
+    ret = LSsetModelLogfunc(model.ptr, f, model.uDict)
     _check_ret(model, ret)
     return
 end
 
 function MOI.set(model::Optimizer, cb_data::CallbackFunction, f::Function)
     model.usr_set_cbfunc = true
-    ret = LSsetCallback(model.ptr, f, cb_data.uData)
+    model.uDict = cb_data.uData
+    ret = LSsetCallback(model.ptr, f, model.uDict)
     _check_ret(model, ret)
     return
 end
 
 function MOI.set(model::Optimizer, cb_data::GOPCallbackFunction, f::Function)
     model.usr_set_GOPcbfunc = true
-    ret = LSsetGOPCallback(model.ptr, f, cb_data.uData)
+    model.uDict = cb_data.uData
+    ret = LSsetGOPCallback(model.ptr, f, model.uDict)
     _check_ret(model, ret)
     return
 end
 
 function MOI.set(model::Optimizer, cb_data::MIPCallbackFunction, f::Function)
     model.usr_set_MIPcbfunc = true
-    ret = LSsetMIPCallback(model.ptr, f, cb_data.uData)
+    model.uDict = cb_data.uData
+    ret = LSsetMIPCallback(model.ptr, f, model.uDict)
     _check_ret(model, ret)
     return
 end
@@ -123,12 +118,12 @@ end
 =#
 function _setSolverCallback(model::Optimizer)
     if model.usr_set_logfunc == false
-        MOI.set(model, Lindoapi.LogFunction(uDict), logFunc)
+        MOI.set(model, Lindoapi.LogFunction(model.uDict), logFunc)
     end
     if model.use_Global == true && model.usr_set_GOPcbfunc == false
-        MOI.set(model, Lindoapi.GOPCallbackFunction(uDict), cbGOPFunc)
+        MOI.set(model, Lindoapi.GOPCallbackFunction(model.uDict), cbGOPFunc)
     elseif model.use_LSsolveMIP == true && model.usr_set_MIPcbfunc == false
-        MOI.set(model, Lindoapi.MIPCallbackFunction(uDict), cbMIPFunc)
+        MOI.set(model, Lindoapi.MIPCallbackFunction(model.uDict), cbMIPFunc)
     else
         nothing
     end

@@ -161,6 +161,12 @@ Base.unsafe_convert(::Type{Ptr{Cvoid}}, env::Env) = env.ptr::Ptr{Cvoid}
  Pram ptr: Of type pLSmodel a Lindo data type to be model pointer argument
             for API calls.
  Param loaded: A flag to determin if model instructions have been loaded.
+ Param uDict : Passthrough data for callback functions
+ Param usr_set_logfunc: A flag to indicate if the log callback function is set
+ Param usr_set_cbfunc: A flag to indicate if the callback function is set
+ Param usr_set_MIPcbfunc: A flag to indicate if the MIP callback function is set
+ Param usr_set_GOPcbfunc: A flag to indicate if the GOPcallback function is set
+ Param use_LSsolveMIP: A flag for the log callback function
  Param use_LSsolveMIP: A flag to determin weather or not to use LSsolveMIP()
     set to true in MOI.add_constraint located in MOI_var.jl
  Paran use_Global: A flag to toggle the Global solver on and off.
@@ -190,6 +196,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     env::Union{Nothing,Env}
     ptr::pLSmodel
     loaded::Bool
+    uDict::Dict{String, Any}
     usr_set_logfunc::Bool
     usr_set_cbfunc::Bool
     usr_set_MIPcbfunc::Bool
@@ -245,6 +252,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
         model.objective_type = _SCALAR_AFFINE
         model.objective_function = nothing
         model.loaded = false
+        model.uDict = _uDict = Dict("Prefix" => "Lindo API", "Postfix" => "...",)
         model.usr_set_logfunc = false
         model.usr_set_cbfunc = false
         model.usr_set_MIPcbfunc = false
@@ -649,6 +657,7 @@ function _getReducedCosts(model::Optimizer)
     _check_ret(model, ret)
 end
 
+
 #=
 
  Function MOI.get //  attr::MOI.ConstraintDual, index::Index
@@ -956,9 +965,9 @@ end
 • LS_METHOD_NLP: 4.
 
 =#
-function MOI.set(model::Optimizer, raw::MOI.RawParameter, value::Int32)
+function MOI.set(model::Optimizer, raw::MOI.RawParameter, value)
     if raw.name == "solverMethod"
-        model.solverMethod = value
+        model.solverMethod = Int32(value)
     else
         println("$(raw.name): Not supported")
     end
