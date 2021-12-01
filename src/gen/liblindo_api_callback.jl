@@ -101,6 +101,7 @@ end
 """
 function relayCallback(pModel, nLocation, uData)
     uData._cbFunc(pModel, nLocation ,uData._cbData)
+    return Int32(0)
 end
 
 function LSsetCallback(pModel, pfCallback, pvCbData)
