@@ -24,10 +24,49 @@ To update to the most current version of Ipopt.jl
 
 using Lindoapi
 using JuMP
+using Printf
+
 
 use_global = true
 
 model = Model(Lindoapi.Optimizer)
+
+function logFunc(pModel, line, uDict)
+   param_ptr = Cdouble[-1.0]
+   Lindoapi.LSgetModelDouParameter(pModel, Lindoapi.LS_DPARAM_CALLBACKFREQ, param_ptr)
+   println(param_ptr[1])
+    @printf("%s %s",uDict["Prefix"], line)
+    return Int32(0)
+end
+
+function cbFunc(pModel, loc, uDict)
+   dObj = Cdouble[-1]
+   Lindoapi.LSgetCallbackInfo( pModel, loc, Lindoapi.LS_DINFO_POBJ, dObj)
+   println(dObj)
+   return Int32(0)
+end
+
+uDict = Dict(
+"Prefix"  => "LP sample:",
+"Postfix" => "...",
+"model"     => 11
+)
+
+
+MOI.set(model, Lindoapi.LogFunction(uDict), logFunc)
+MOI.set(model, Lindoapi.CallbackFunction(uDict), cbFunc)
+
+set_optimizer_attribute(
+         model,
+         Lindoapi.LindoDouParam(Lindoapi.LS_DPARAM_CALLBACKFREQ),
+         2000.00
+      )
+
+println(      get_optimizer_attribute(
+               model,
+               Lindoapi.LindoDouParam(Lindoapi.LS_DPARAM_CALLBACKFREQ),
+            ))
+
 set_optimizer_attribute(model, "use_Global", use_global)
 
 @variable(model, -10 <= x[1:4] <= 10)

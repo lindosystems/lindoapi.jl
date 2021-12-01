@@ -1,4 +1,4 @@
-# Lindo API in Julia 
+﻿# Lindo API in Julia 
 
 
 
@@ -16,7 +16,7 @@ See the [manual](https://www.lindo.com/downloads/PDF/API.pdf) for operating syst
 
 ## Installing Lindoapi.jl
 
-The Julia library needs to know where the Lindo API is stored to do so create and environment variable named ```LINDOAPI_HOME```. 
+The Julia library needs to know where the Lindo API is stored. To do so create an environment variable named. ```LINDOAPI_HOME```. 
 ### Using Windows
 On the command line
 ```dos
@@ -49,7 +49,7 @@ The [manual](https://www.lindo.com/downloads/PDF/API.pdf) has documentation on e
 1. Creating Modeling Environment and Model
 2. Loading Data
 3. Calling the Optimizer
-4. Quarrying the Model
+4. Query the Model
 5. Freeing Model and Environment
 
 ### Creating Modeling Environment and Model 
@@ -58,11 +58,9 @@ This section goes over the creation of the pointers to the environment and a mod
 
 **1)**  ```LSloadLicenseString(pszFname, pachLicense)```
 
-This function loads users license key into an array. This function comes
-first since the API key is needed to create API environment for models.
+This function loads users license key into an array. This function comes first since the API key is needed to create API environment for models.
 
-``pszFname``: A string that contains the full path to your Lindo API
-          license key.
+``pszFname``: A string that contains the full path to your Lindo API license key.
 
 
 ``pachLicense``: An empty vector of type unsinged Int 8 (UInt8)
@@ -71,8 +69,12 @@ first since the API key is needed to create API environment for models.
 ``Returns``: An error code of type Int if not 0 then it has failed.
 
 ```julia
-LicenseKey = Vector{UInt8}(undef,1024)                    # undef argument for not initializing the vector used for performance
-license_path = joinpath(PATH,"license/lndapi130.lic")     # joinpath is a built in function for concatonating two paths.
+PATH = ENV["LINDOAPI_HOME"]
+# undef argument for not initializing the vector
+# used for performance
+LicenseKey = Vector{UInt8}(undef,1024)
+# joinpath is a built in function for concatenating two paths.
+license_path = joinpath(PATH,"license/lndapi130.lic")     
 ret = Lindoapi.LSloadLicenseString(license_path, LicenseKey)
 if ret != 0
     error("Key not found check key $(license_path)")
@@ -81,16 +83,13 @@ end
 
 **2)** ```LScreateEnv(pnErrorCode, LicenseKey)```
 
-This function creates a modeling environment that one or more models
-can be attached to.
+This function creates a modeling environment that one or more models can be attached to.
 
 
-``pnErrorCode``: An array of Int32 initialized with one element for LScreateEnv
-            to store the error code. If ``pnErrorCode[1] == 0`` after the function is
-            ran then it was successful.
+``pnErrorCode``: An array of Int32 initialized with one element for LScreateEnv to store the error code. If ``pnErrorCode[1] == 0`` after the function is ran, then it was successful.
 
 
-``LicenseKey``: A vector of UInt8 that is initialized by LSloadLicenseString.
+``LicenseKey``: A vector of UInt8 that is initialized by `LSloadLicenseString`.
 
 
 ``Returns``: A pointer to the newly created instance of LSenv.
@@ -105,35 +104,23 @@ Lindoapi.check_error(pEnv,pnErrorCode[1])
 
 Once the environment is created error codes can be checked and error messages can be displayed.
 
-
-``pEnv``:      A pointer to an environment created by LScreateEnv.
-
+``pEnv``:  A pointer to an environment created by `LScreateEnv`.
 
 ``ErrorCode``: The first element of pnErrorCode.
 
-
-
-``Returns``: An error message If ``pnErrorCode[1] != 0`` and the program is exited.
+``Returns``:  Prints an error message If ``pnErrorCode[1] != 0`` and then the program is exited.
 
 ```julia
 Lindoapi.check_error(pEnv,pnErrorCode[1])
 ```
 
-**4)** ```LScreateModel(pEnv, pnErrorCode)```
-
-This function creates a model pointer.
-
+**4)** `LScreateModel(pEnv, pnErrorCode)` This function creates a model pointer.
 
 ``pEnv``:           A pointer to an environment created by LScreateEnv.
 
-
-``pnErrorCode``:    An array of Int32 initialized with one element for LScreateEnv
-            to store the error code when pnErrorCode[1] = 0 the function is successful.
-
-
+``pnErrorCode``:    An array of Int32 initialized with one element for `LScreateEnv` to store the error code when `pnErrorCode[1] == 0` the function is successful.
 
 ``Returns`` : A pointer to a newly created model.
-
 
 ```julia
 pModel = Lindoapi.LScreateModel(pEnv, pnErrorCode)
@@ -149,8 +136,6 @@ Once an environment has been created and a model has been attached the data can 
 * ``LSloadInstruct``
 
 ### Calling The Optimizer 
-and soon the changes will be less frequent and drastic. 
-There are three routines for calling Lindo API’s solver.
 
 *  ``LSoptimize(pModel, nMethod, pnSolStatus)`` Use this when all variables are continuous.
 * ``LSsolveMIP(pModel, pnMIPSolStatus)``   When there is one or more integer variables.
@@ -158,8 +143,7 @@ There are three routines for calling Lindo API’s solver.
 
 ``pModel``: The pointer to the model being optimized.
 
-``pnSolStatus``, ``pnMIPSolStatus``, ``pnGOPSolStatus``: To store the optimization status a vector of type Int with a single value 
-``pnStatus = Int32[-1]``. The solver will replace the single value with the optimization status when finished.
+``pnSolStatus``, ``pnMIPSolStatus``, ``pnGOPSolStatus``: To store the optimization status a vector of type Int32 with a single value  ``pnStatus = Int32[-1]``. The solver will replace the single value with the optimization status when finished.
 For a detailed list describing all 14 different model statuses see the [manual](https://www.lindo.com/downloads/PDF/API.pdf) page 22 in the Common Parameter Macro Definitions table.
 
 ``nMethod``: Only used in  ``LSoptimize``. This is a value of type Int that corresponds to what kind of optimization method the solver will use. There are stored constants in the Lindoapi.jl for the possible values of ``nMethod``. Use ``Lindoapi.LS_METHOD_FREE`` to let the solver decide what is best.
@@ -185,14 +169,14 @@ end
 
 
 
-### Quarrying the Model
+### Querying the Model
 
 ``LSgetInfo(pModel, nQuery, pvResult)``  
 Used to get model objective value or other information about the model. 
 
 ``pmodel``:  A pointer to the model that is being queried.
 
-``nQuery``:  An Integer that corresponds to what is being quarried Lindoapi.jl has a constant stored for each possible nQuery. For example, to get the objective value when the model has continuous variables use ``Lindoapi.LS_DINFO_POBJ`` . When there are integer variables, use ``Lindoapi.LS_IINFO_POBJ`` to get the objective value. For a detailed list of all query values see the [manual](https://www.lindo.com/downloads/PDF/API.pdf) page 139.
+``nQuery``:  An Integer that corresponds to what is being queried Lindoapi.jl has a constant stored for each possible nQuery. For example, to get the objective value when the model has continuous variables use ``Lindoapi.LS_DINFO_POBJ`` . When there are integer variables, use ``Lindoapi.LS_IINFO_POBJ`` to get the objective value. For a detailed list of all query values see the [manual](https://www.lindo.com/downloads/PDF/API.pdf) page 139.
 
 ``pvResults``: Used to store the value returned the function takes Ptr{Cvoid} making versatile for integer values use
 ``pvResult = Int32[-1]`` and for floating point use ``pvResults = Cdouble[-1]``.  
@@ -213,9 +197,9 @@ Lindoapi.check_error(pEnv, errorcode)
 
 The arguments for these functions are similar use the ``MIP`` functions when the model has any integer variables.
 
-``pmodel``:  A pointer to model that is being quarried.
+``pmodel``:  A pointer to model that is being queried.
 ``padPrimal``:  A vector of Cdouble that is the length of the number of variables in the model the function will replace the values in the list with the primal values.
-``padDual``:  Like ``padPrimal`` a vector of Cdouble that is the length of the number of constraints in the model.
+``padDual``: A vector of Cdouble that is the length of the number of constraints in the model.
 
 ```julia
 padPrimal = Vector{Cdouble}(undef, nVars)
@@ -251,7 +235,9 @@ Lindoapi.check_error(pEnv, errorcode)
 2. Making Variables
 3. Constraints
 4. Objectives
-5. Quarrying the Model
+5. Setting Model Attributes
+6. Calling the Optimizer
+7. Querying the Model
 
 ### Creating a Model
 
@@ -265,7 +251,7 @@ model = Model(Lindoapi.Optimizer)
 
 ### Making Variables
 
-The Lindoapi.jl supports the JuMP macro `@variable` to attach variables to a model.
+The Lindoapi.jl supports the JuMP macros `@variable` and `@variables` to attach variables to a model.
 
 `@variable(model, expr, args...)`
 
@@ -275,6 +261,19 @@ The Lindoapi.jl supports the JuMP macro `@variable` to attach variables to a mod
 * `@variable(model, x[1:n])`  Vector of `n`  variables.
 * `@variable(model, x[1:n, 1:m])` Matrix of `n` by `m`  variables.
 * `@variable(model, a <= x[1:n] <= b)`  Vector  `n`  variables bounded between `a` and `b`
+
+`@variables(model, args...)` add multiple variables wrapped in a `begin ..end`
+
+``` julia
+@variables(model,
+    begin
+    2 <= x1 <= 5
+    1 <= x2
+         x3 <= 10
+         x4
+     end
+)
+```
 
 `args`:  Supported `Bin` for binary and `Int` for integer variables. This argument can be used on any of the above examples.
 
@@ -286,14 +285,14 @@ The variables in arrays can be accessed like typical julia array use `x[i]` to a
 
 To attach a constraint to a model, use the macro`@NLconstraint`
 
-`@NLconstraint(model, expr)`
+`@NLconstraint(model, ref, expr)`
 
-`expr`:  Constraint expression
+`ref`: A constraint name for referncing. This is an optional argument and is equivalent to `ref = @NLconstraint(model, expr)`.
 
-Lindoapi.jl supports the constraints `<=`, `>=` and `==`.
+`expr`:  Constraint expression. Lindoapi.jl supports the constraints `<=`, `>=`  and `==`.
 
 ``` julia
-@NLconstraint(model, x[1]*x[2] <=  6)
+@NLconstraint(model, con1, x[1]*x[2] <=  6)
 ```
 
 To sum over or take the product of variables JuMP supports `sum` and `prod` operations.
@@ -301,21 +300,23 @@ To sum over or take the product of variables JuMP supports `sum` and `prod` oper
 @NLconstraint(model, sum(x[i] for i in 1:n) == 1)
 ```
 
-To make an array of `n` constraints use `[i = 1:n]` before the constraint expression. The variable `i` can be used to index over variables aswell.
+To make an array of `n` constraints use `[i = 1:n]` before the constraint expression. The variable `i` can be used to index over variables as well.
 ```julia
-@NLconstraint(model,
-			  [i = 1:(n - 1)],
-			  θ[i] - θ[i+1] <= 0
-		      )
+@NLconstraint(
+	model,
+	con2[i = 1:(n - 1)],
+	θ[i] - θ[i+1] <= 0
+)
 ```
 
 **Note:**  `@NLconstraint` does not support matrix and vector operations, and the `sum` function will have to be used instead. Here is an example of `w'Σ*w` using a double `sum`.
 
 ```julia
-@NLconstraint(model,
-			  sum(w[i] * sum(Σ[i,j] * w[j]
-			  for j in 1:n) for i in 1:n)  <= K
-			  )
+@NLconstraint(
+	model,
+	sum(w[i] * sum(Σ[i,j] * w[j]
+		for j in 1:n) for i in 1:n)  <= K
+)
 ```
 
 ###  Objectives
@@ -329,15 +330,148 @@ To attach an objective to a model, use the macro`@NLobjective`
 `expr`: The objective expression is expressed just as the constraints are, and supports `sum` and `prod` as well.
 
 ```julia
-NLobjective(model,
-			Min,
-			sum(x[i,j]*exp(f[i,j]*(x[i,j]-g[i,j]))
-			for i in 1:m, j in 1:n)
-			)
+NLobjective(
+	model,
+	Min,
+	sum(x[i,j]*exp(f[i,j]*(x[i,j]-g[i,j]))
+	for i in 1:m, j in 1:n)
+)
 ```
 
 **Note:** JuMP currently only supports one objective function per model with `@NLobjective`.
+### Setting Model Attributes
 
+Model attributes can be set using the overloaded function `set_optimizer_attribute()`
+ * `set_optimizer_attribute(model::Model, name::String, value)`
+ * `set_optimizer_attribute(model::Model, name::LindoIntParam, value)`
+ * `set_optimizer_attribute(model::Model, name::LindoDouParam, value)`
+
+`set_optimizer_attribute(model::Model, name::String, value)` 
+
+`name`:  This argument can be any of the three listed below.
+* `"use_global"` toggles on/off the global solver.
+* `"silent"` toggles on/off the defualt callbacks
+* `"solverMethod"` Sets the solver method to `LSoptimize()`.
+
+`value`:  Both `"use_global"` and `"silent"` only accept boolean arguments `true` or `false`.  The acceptable arguments for `"solverMethod"` are the following integers.
+
+* 0  `LS_METHOD_FREE` 
+* 1  `LS_METHOD_PSIMPLEX`
+* 2  `LS_METHOD_DSIMPLEX`
+* 3  `LS_METHOD_BARRIER`
+* 4  `LS_METHOD_NLP`  
+
+```julia
+method = 1  # LS_METHOD_PSIMPLEX
+set_optimizer_attribute(
+	model,
+	"solverMethod",
+	 method
+) 
+ ```
+ 
+ `name`:  A type LindoIntParam is unique to the Lindoapi, and is used hold a Lindo API integer parameter.  
+ 
+ `value`: The integer value of the parameter being set.
+ 
+ ```julia
+iparam = Lindoapi.LindoIntParam(Lindoapi.LS_IPARAM_SOLVER_METHOD)
+solver_method = 3     #LS_METHOD_BARRIER
+JuMP.set_optimizer_attribute(
+	model,
+	iparam,
+	solver_method
+)
+```
+
+ `set_optimizer_attribute(model::Model, name::LindoDouParam, value)`  
+ 
+ `name`:  A type LindoDouParam is also unique to the Lindoapi, and is used hold a Lindo API double parameter.  
+ 
+ `value`: The Float value of the parameter being set.
+ 
+ ```julia
+iparam = Lindoapi.LindoDouParam(Lindoapi.LS_DPARAM_IPM_BASIS_TOL_S)
+adtol = 10^(-8)     #Maximum absolute dual bound violation
+JuMP.set_optimizer_attribute(
+	model,
+	iparam,
+	adtol
+)
+```
+
+See [manual](https://www.lindo.com/downloads/PDF/API.pdf) **Available Parameters** section page 64 for a detailed list of all parameters. Any parameter starting with LS_IPARAM will work with LindoIntParam and any parameter starting with LS_DPARAM will work with LindoDouParam.
+
+### Callback Functions
+
+Custom callback functions can be attached to the model. To attach one to the model use the overloaded `MOI.set()` function. 
+
+
+`MOI.set(model, ::AbstractCallback, cbfunc)`
+
+`::AbstractCallback` Will represent the type of callback function being set. This abstract data type has been extended by four datatypes exclusive to the Lindoapi.jl
+
+* `LogFunction(uDict::Dict{String, Any})`
+* `CallbackFunction(uDict::Dict{String, Any})`
+* `GOPCallbackFunction(uDict::Dict{String, Any})`
+* `MIPCallbackFunction(uDict::Dict{String, Any})`
+
+`uDict`: A dictionary of Data with keys of type String and data of any datatype. This is pass through data to access within the callback function.
+
+This sample  demonstrates the flexibility of uDict as passthrough data. Also the ease of writing a callback function, and initializing a `LogFunction` type. Finally how to set the callback with `MOI.set()`.  
+```julia
+uDict = Dict(
+"Prefix"     => "Custom Callback",
+"Postfix"    => "...",
+"firstPrint" => true,
+"model"      => model)
+
+function logFunc(modelPtr, line, uDict)
+        if uDict["firstPrint"] == true
+                println(uDict["model"])
+                uDict["firstPrint"] = false
+        else
+                @printf("%s",line)
+        end
+end
+logCallback = LogFunction(uDict)
+
+MOI.set(model, Lindoapi.LogFunction(uDict), logFunc)
+```
+
+Here are templates for the all the callback functions
+```julia
+uDict = Dict(
+"Prefix"     => "Custom Callback",
+"Postfix"    => "...",)
+
+function logFunc(modelPtr, line, uDict)
+  # your code here
+end
+MOI.set(model, Lindoapi.LogFunction(uDict), logFunc)
+```
+```julia
+function cbFunc(pModel, loc, uDict)
+	# your code here
+end
+MOI.set(model, Lindoapi.CallbackFunction(uDict), cbFunc)
+```
+```julia
+function cbMIPFunc(modelPtr, uDict, objValue, pimalValues)
+	# your code here
+end
+MOI.set(model, Lindoapi.MIPCallbackFunction(uDict), cbMIPFunc)
+```
+```julia
+function cbGOPFunc(modelPtr, uDict, objValue, pimalValues)
+	# your code here
+end
+MOI.set(model, Lindoapi.GOPCallbackFunction(uDict), cbGOPFunc)
+```
+The `uDict` is the only data that you need to provide. The rest will be passed to the functions by the Lindo API. See the [manual](https://www.lindo.com/downloads/PDF/API.pdf)  for more detail on how to use the Callbacks and the Lindo API functions such as `LSgetCallbackInfo()`. 
+
+**Note** By `using JuMP` the Mathoptinterface.jl libray is also imported and a constant `MOI = Mathoptinterface` is set. 
+ 
 ### Calling the Optimizer
 
 Once the variables, constraints and objective have been added to the model use the function `optimize!`.
@@ -346,28 +480,116 @@ Once the variables, constraints and objective have been added to the model use t
 optimize!(model)
 ```
 
-###  Quarrying the Model
+###  Querying the Model
 
-A list of supported functions supported to quarry the model and its variables
+A list of supported functions supported to query the model and its variables
 
 * `termination_status(model)`
+* `raw_status(model)`
+* `primal_status(model)`
+* `dual_status(model)`
 * `objective_value(model)`
-* `value(x[I])`
+* `dual_objective_value(model)`
+* `value(x)`
+* `reduced_cost(x)`
+* `dual(constraint_name)`
+* `get_optimizer_attribute(model,Lindoapi.Slack_or_Surplus())`
+* `solution_summary(model)`
 * `println(model)`
 
-`termination_status(model)` Returns:
+`termination_status(model)`  A list of all possible returns and what Lindo termination status maps to them. 
+
 * OPTIMAL
-*  INFEASIBLE
+	* LS_STATUS_OPTIMAL
+	* LS_STATUS_BASIC_OPTIMAL
+* ALMOST_OPTIMAL
+	* LS_STATUS_NEAR_OPTIMAL
 * LOCALLY_SOLVED
-* LOCALLY_INFEASIBLE
-* DUAL_INFEASIBLE
+	* LS_STATUS_LOCAL_OPTIMAL
+* ALMOST_LOCALLY_SOLVED
+	* LS_STATUS_FEASIBLE
+* INFEASIBLE
+	* LS_STATUS_INFEASIBLE
 * INFEASIBLE_OR_UNBOUNDED
+	* LS_STATUS_INFORUNB 
+	* LS_STATUS_UNBOUNDED
+* LOCALLY_INFEASIBLE
+	* LS_STATUS_LOCAL_INFEASIBLE
+* OBJECTIVE_LIMIT
+	* LS_STATUS_CUTOFF
 * OPTIMIZE_NOT_CALLED
+	* LS_STATUS_UNLOADED
+	* LS_STATUS_LOADED
+* OTHER_ERROR
+	* LS_STATUS_UNKNOWN
+
+`raw_status(model)` This function will return the Lindo termination status. For more detail on the Lindo termination status see Model Status  table on pages 22-23 in the [manual](https://www.lindo.com/downloads/PDF/API.pdf).
+
+```julia 
+julia> JuMP.raw_status(model)
+"LS_STATUS_OPTIMAL"
+```
+`primal_status(model)`  Returns:
+
+* `NO_SOLUTION`
+* `FEASIBLE_POINT`
+* `INFEASIBLE_POINT`
+* `UNKNOWN_RESULT_STATUS`
+
+`dual_status(model)`  Returns
+
+* `NO_SOLUTION`
+* `FEASIBLE_POINT`
+* `INFEASIBLE_POINT`
+* `UNKNOWN_RESULT_STATUS`
+
+If the model is a MIP then `dual_status(model)` will return `NO_SOLUTION` unless the `LS_IPARAM_MIP_DUAL_SOLUTION` flag is set to `1`.
 
 `objective_value(model)`  Returns the objective value of the model.
 
+`dual_objective_value(model)` Returns the dual objective value of the model. Only works for continuous models.
+
 `value(x)` This function takes single variable and returns it value.
  If `x` is an array or matrix use the `.` operator like so `value.(x)` to broadcast the function to each element.
+
+`reduced_cost(x)` Returns the reduced cost of a single variable `x`. If `x` is an array or matrix use the `.` operator like so `reduced_cost.(x)` to broadcast the function to each element.
+
+`dual(constraint_name)` Returns the dual price of a constraint. If the constraint is defined as an array use the `.` operator `dual.(constraint_name)`  to broadcast the function to each element.
+This function only works when the model is continuous. 
+
+`get_optimizer_attribute(model,Lindoapi.Slack_or_Surplus())` Returns an array of the slack variables for the model. The order of each element in the array is the order that the constraints are defined as in the model. This function will only work for the Lindoapi and no other solvers. 
+
+```julia
+slacks = JuMP.get_optimizer_attribute(model,
+			Lindoapi.Slack_or_Surplus()
+		   )
+portfolio_con_dual  = JuMP.dual(portfolio_con)
+return_con_dual     = JuMP.dual(return_con)
+portfolio_con_slack = slacks[1]
+return_con_slack    = slacks[2]
+```
+
+
+`solution_summary(model)` Returns a struct that can be used to print out a solution summary. 
+
+```julia
+julia> solution_summary(model)
+* Solver : Lindo
+
+* Status
+  Termination status : OPTIMAL
+  Primal status      : FEASIBLE_POINT
+  Dual status        : FEASIBLE_POINT
+  Message from the solver:
+  "LS_STATUS_OPTIMAL"
+
+* Candidate solution
+  Objective value      : 0.2428012179755081
+  Dual objective value : 0.24280121682384317
+
+* Work counters
+  Solve time (sec)   : 0.00000
+```
 
 `println(model)` Prints out a mathematical representation of the model.
 

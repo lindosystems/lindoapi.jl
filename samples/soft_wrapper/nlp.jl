@@ -39,12 +39,14 @@ function cbMIPFunc(pModel, uDict, dObj, padPrimal)
     end
 end
 
+# The objective value separated into five functions
 g1(x, y) = exp( -x^2 - (y + 1)^2)
 g2(x, y) = exp(-x^2 - y^2)
 g3(x, y) = exp( -((x+1)^2) - y^2)
 f1(x, y) = (1 - x)^2
 f2(x, y) = x/5 - x^3 - y^5
 
+# the first partials (x and y) of the above five functions
 dxg1(x, y) = -2*x*g1(x, y)
 dyg1(x, y) = -2*(y+1)*g1(x, y)
 dxg2(x, y) = -2*x*g2(x, y)
@@ -56,8 +58,8 @@ dyf1(x, y) = 0
 dxf2(x, y) = (1/5 - 3*x^2)
 dyf2(x, y) = -5*y^4
 
+# A callback function to compute the objective and constraints
 function cbFuncalc(pModel, udict, nRow, padPrimal, nJDiff, dXJBase, funcVal, reserved)
-    # compute objective's functional value
     x = padPrimal[1]
     y = padPrimal[2]
     if nRow == -1
@@ -70,8 +72,9 @@ function cbFuncalc(pModel, udict, nRow, padPrimal, nJDiff, dXJBase, funcVal, res
     return funcVal
 end
 
+# A callback function to compute the  gradienet of the objective and constraints
 function cbGgradcalc(pModel, udict, nRow, padPrimal, lb, ub, isNewPoint, NPar, parlist, partial)
-    # compute objective's functional value
+
     x = padPrimal[1]
     y = padPrimal[2]
 

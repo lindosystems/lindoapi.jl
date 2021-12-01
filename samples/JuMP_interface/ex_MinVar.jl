@@ -61,7 +61,7 @@ solver_method = Lindoapi.LS_METHOD_BARRIER
 model = Model(Lindoapi.Optimizer)
 JuMP.set_optimizer_attribute(model,
          Lindoapi.LindoIntParam(Lindoapi.LS_IPARAM_SOLVER_METHOD),
-         Int(solver_method))
+         Lindoapi.LS_IPARAM_SOLVER_METHOD)
 # Declaring n model variables of portfolio weights
 @variable(model,  w[1:(n)] >= 0)
 # Portfolio weights sum to 1
