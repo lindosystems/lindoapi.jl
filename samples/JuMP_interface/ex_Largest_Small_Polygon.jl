@@ -20,7 +20,7 @@ n_v: Number of vertices of polygon.
 
 
 To run sample
-    include("/PathToUse/ex_Largest_Small_Polygon.jl")
+    include("/PathToUse/JuMP_interface/ex_Largest_Small_Polygon.jl")
 
 To update to the most current version of Lindoapi.jl
 Run in REPL:
@@ -46,8 +46,8 @@ using Printf
 # n_v = 8
 # Get n_v from user input
 
-use_global = true
-n_v = 4
+use_global = false
+n_v = 5
 
 
 # initialize an empty model
@@ -109,5 +109,5 @@ plot(
     ylim=(-0.1,1.1),
     xlabel = "x",
     ylabel = "y",
-    leg = false)
+    legend = false)
 scatter!(x,y)

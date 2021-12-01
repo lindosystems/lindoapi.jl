@@ -13,7 +13,7 @@ Purpose:
 
 
  To run sample
-     include("/PathToUse/ex_gop.jl")
+     include("/PathToUse/JuMP_interface/ex_lockbox.jl")
 
 To update to the most current version of Ipopt.jl
      Run in REPL:
@@ -56,7 +56,7 @@ model = Model(Lindoapi.Optimizer)
              sum(x[i,j]*loss_interest[i,j] for i in 1:n_regions, j in 1:m_cities)
             + lockbox_cost*sum(y[j] for j in 1:m_cities)
              )
-             
+
 One_per_region       = @NLconstraint(model, [i = 1:n_regions],
                                      sum(x[i,j] for j in 1:m_cities) == 1
                                     )
