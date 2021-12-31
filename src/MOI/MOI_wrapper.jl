@@ -31,9 +31,7 @@ const _SENSE = Dict(
     MOI.MAX_SENSE => LS_MAX,)
 
 
-@enum( _ObjectiveType,
-    _SCALAR_AFFINE
-)
+@enum(_ObjectiveType, _SINGLE_VARIABLE, _SCALAR_AFFINE, _NLP)
 
 @enum(
     _BoundType,
@@ -43,6 +41,12 @@ const _SENSE = Dict(
     _LESS_AND_GREATER_THAN,
     _INTERVAL,
     _EQUAL_TO,
+)
+
+ConstraintType = Dict(
+                      MOI.EqualTo{Float64}      => 'E',
+                      MOI.GreaterThan{Float64}  => 'G',
+                      MOI.LessThan{Float64}     => 'L',
 )
 
 #=
@@ -89,6 +93,18 @@ mutable struct _VariableInfo
         return variable_info
     end
 end
+
+mutable struct _ConstraintInfo
+    coefs::Vector{Float64}
+    varCols::Vector{Int}
+    rhs::Float64
+    conType::Char
+    loaded::Bool
+    function _ConstraintInfo(coefs::Vector{Float64}, varCols::Vector{Int}, rhs::Float64, conType::Char)
+        return new(coefs, varCols, rhs, conType, false)
+    end
+end
+
 
 #=
 
@@ -204,7 +220,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     use_LSsolveMIP::Bool
     use_Global::Bool
     solverMethod::Int32
-    nlp_data::MOI.NLPBlockData
+    nlp_data::Union{Nothing,MOI.NLPBlockData}
     load_index::Int
     objective_sense::MOI.OptimizationSense
     lindoTerminationStatus::Int
@@ -222,6 +238,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
         typeof(_HASH),
         typeof(_INVERSE_HASH),
     }
+    affine_constraint_info::Dict{Int,_ConstraintInfo}
 
     #enable_interrupts::Bool
     silent::Bool
@@ -247,9 +264,9 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
         model.ptr  = LScreateModel(model.env, ret)
         model.env.attached_models += 1
         _check_ret(model, ret[1])
-
+        model.nlp_data = nothing
         model.silent = false
-        model.objective_type = _SCALAR_AFFINE
+        model.objective_type = _NLP
         model.objective_function = nothing
         model.loaded = false
         model.uDict = _uDict = Dict("Prefix" => "Lindo API", "Postfix" => "...",)
@@ -275,6 +292,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
             _HASH,
             _INVERSE_HASH,
         )
+        model.affine_constraint_info = Dict{Int, _ConstraintInfo}()
         finalizer(model) do m
             ret = LSdeleteModel(m.ptr)
             _check_ret(m,ret)
@@ -384,6 +402,32 @@ end
 
 #=
 
+ Function _get_next_column:
+ Brief: This function is used to get the next_columnm and,
+        incrament the model attribute next_column.
+
+ Param model:
+=#
+function _get_next_column(model::Optimizer)
+    model.next_column += 1
+    return model.next_column - 1
+end
+
+#=
+
+ Function _get_next_row:
+ Brief: This function is used to get the next_row and,
+        incrament the model attribute next_row.
+
+ Param model:
+=#
+function _get_next_row(model::Optimizer)
+    model.next_row += 1
+    return model.next_row-  1
+end
+
+#=
+
  Function: _add_to_expr_list
  Brief: takes an post order expresion and
         (1) adds it to a Lindo instruction list (code)
@@ -397,15 +441,15 @@ end
  Param instructionList: A julia instruction list used to fill code and numval.
 
 =#
-function _add_to_expr_list(model::Optimizer,code, numval, ikod, ival, instructionList)
+function _add_NLP_to_expr_list(model::Optimizer,code, numval, ikod, ival, instructionList)
     for i in 1:length(instructionList)
         # when space starts to run low
         # double the length of the instruction
         # vectors.
-        if ikod > length(code) - 1
+        if ikod > length(code) - 3
             code = resize!(code, length(code)*2)
         end
-        if ival > length(numval) - 1
+        if ival > length(numval) - 3
             numval = resize!(numval, length(numval)*2)
         end
         if typeof(instructionList[i]) == Cdouble
@@ -423,19 +467,45 @@ function _add_to_expr_list(model::Optimizer,code, numval, ikod, ival, instructio
     return code, numval, ikod, ival
 end
 
-#=
-
- Function _get_next_column:
- Brief: This function is used to get the next_columnm and,
-        incrament the model attribute next_column.
-
- Param model:
-=#
-function _get_next_column(model::Optimizer)
-    model.next_column += 1
-    return model.next_column - 1
+function _add_Affine_to_expr_list(model::Optimizer,code, numval, ikod, ival, con_info)
+    len = length(con_info.coefs)
+    for i in 1:len
+        # when space starts to run low
+        # double the length of the instruction
+        # vectors.
+        if ikod > length(code) - 6
+            code = resize!(code, length(code)*2)
+        end
+        if ival > length(numval) - 6
+            numval = resize!(numval, length(numval)*2)
+        end
+        if con_info.coefs[i] != 1
+            # add coef
+            code[ikod]   = EP_PUSH_NUM           ; ikod += 1;
+            code[ikod]   = ival - 1              ; ikod += 1;
+            numval[ival] = con_info.coefs[i]     ; ival += 1;
+            # add var
+            code[ikod] = EP_PUSH_VAR             ; ikod += 1;
+            code[ikod] = con_info.varCols[i] - 1 ; ikod += 1;
+            # add multiplication symbol
+            code[ikod] = EP_MULTIPLY             ; ikod += 1;
+        else
+            code[ikod] = EP_PUSH_VAR             ; ikod += 1;
+            code[ikod] = con_info.varCols[i] - 1 ; ikod += 1;
+        end
+        if i != 1
+            # add addition symbol
+            code[ikod] = EP_PLUS             ; ikod += 1;
+        end
+    end
+    # add rhs
+    code[ikod]   = EP_PUSH_NUM           ; ikod += 1;
+    code[ikod]   = ival - 1              ; ikod += 1;
+    numval[ival] = con_info.rhs          ; ival += 1;
+    # add minus symbol
+    code[ikod] = EP_MINUS                ; ikod += 1;
+    return code, numval, ikod, ival
 end
-
 #=
  Function _parse:
  Brief: takes the objective and constraints in the NLPBlock
@@ -452,20 +522,22 @@ end
 
 =#
 function _parse(model::Optimizer,load::Bool)
-    con_count = length(model.nlp_data.constraint_bounds)
+    con_count = length(model.nlp_data.constraint_bounds) + model.next_row - 1 # dumb fix it
     # initilze list with some memory
     code = Vector{Cint}(undef, 200)
     numval = Vector{Cdouble}(undef, 30)
     lwrbnd = Vector{Cdouble}(undef, model.next_column - 1)
     uprbnd = Vector{Cdouble}(undef, model.next_column - 1)
-    varval = Vector{Cdouble}(undef,  model.next_column - 1)
-    vtype = Vector{Cchar}(undef, model.next_column - 1)
+    varval = Vector{Cdouble}(undef, model.next_column - 1)
+    vtype  = Vector{Cchar}(undef, model.next_column - 1)
     objsense = [_get_Lindo_sense(model)]
     objs_beg = [0]
     objs_length = Vector{Int32}(undef,1)
     ctype = Vector{Cchar}(undef, con_count)
     cons_beg = Vector{Int32}(undef, con_count)
     cons_length = Vector{Int32}(undef, con_count)
+    nNLP_cons = length(model.nlp_data.constraint_bounds) - model.load_index
+    nAffine_cons = 0
     # list indexes
     ikod = 1 # instruction list
     ival = 1 # constants (numval) list
@@ -478,13 +550,14 @@ function _parse(model::Optimizer,load::Bool)
         child_count_list = []
         instructionList, child_count_list = get_pre_order(MOI.objective_expr(model.nlp_data.evaluator), instructionList, child_count_list)
         instructionList = pre_to_post(instructionList,child_count_list)
-        code, numval, ikod, ival = _add_to_expr_list(model, code, numval, ikod, ival, instructionList)
+        code, numval, ikod, ival = _add_NLP_to_expr_list(model, code, numval, ikod, ival, instructionList)
         objs_length[iobj] = ikod - (objs_beg[iobj]+1)
         iobj += 1
     end
 
-    # Add Constraints to argument lists
+    # Add NLP Constraints to argument lists
     # starting from the first to last unloaded constraint
+
     for i in (model.load_index+1):length(model.nlp_data.constraint_bounds)
         instructionList = []
         child_count_list = []
@@ -492,10 +565,25 @@ function _parse(model::Optimizer,load::Bool)
         instructionList = pre_to_post(instructionList,child_count_list)
         ctype[icon] = _CON_TYPE[MOI.constraint_expr(model.nlp_data.evaluator, i).args[1]]
         cons_beg[icon] = ikod - 1
-        code, numval, ikod, ival = _add_to_expr_list(model,code, numval, ikod, ival, instructionList)
+        code, numval, ikod, ival = _add_NLP_to_expr_list(model,code, numval, ikod, ival, instructionList)
         cons_length[icon] = ikod - (cons_beg[icon] + 1)
         icon += 1
     end
+
+    # Add Affine Constraints that have not already been loaded
+    for (key, con_info) in model.affine_constraint_info
+
+        if con_info.loaded == false
+            nAffine_cons += 1
+            cons_beg[icon] = ikod - 1
+            code, numval, ikod, ival = _add_Affine_to_expr_list(model,code, numval, ikod, ival, con_info)
+            cons_length[icon] = ikod - (cons_beg[icon] + 1)
+            ctype[icon] = con_info.conType
+            icon += 1
+        end
+    end
+
+
 
     for (key, info) in model.variable_info
         lwrbnd[info.column] = info.lower_bound_bounded
@@ -504,10 +592,11 @@ function _parse(model::Optimizer,load::Bool)
         vtype[info.column] = info.vtype
     end
 
-    ncons = length(model.nlp_data.constraint_bounds) - model.load_index
+    ncons = nAffine_cons + nNLP_cons
     model.load_index = length(model.nlp_data.constraint_bounds)
     nvars = model.next_column - 1
     lsize = ikod - 1
+
     if load
         nobjs = 1
         ret = LSloadInstruct(model.ptr, ncons, nobjs, nvars, ival,
@@ -535,7 +624,6 @@ end
 
 =#
 function MOI.optimize!(model::Optimizer)
-
     if model.loaded == false
         init_feat = Symbol[:ExprGraph]
         MOI.initialize(model.nlp_data.evaluator, init_feat)
@@ -856,10 +944,29 @@ MOI.supports(::Optimizer, ::MOI.ResultCount) = true
 MOI.supports(::Optimizer, ::MOI.PrimalStatus) = true
 MOI.supports(::Optimizer, ::MOI.DualStatus) = true
 MOI.supports(::Optimizer, ::MOI.ConstraintDual) = true
-MOI.supports(::Optimizer, ::MOI.ObjectiveFunctionType) = true
+
 MOI.supports(::Optimizer, ::MOI.VariableName, ::Type{MOI.VariableIndex}) = true
 
-MOI.get(::Optimizer, ::MOI.ObjectiveFunctionType) = MOI.SingleVariable
+function MOI.supports(::Optimizer, ::MOI.ObjectiveFunction{F}) where {F <: Union{MOI.ScalarAffineFunction{Float64}, MOI.SingleVariable}}
+    return true
+end
+
+function MOI.supports_constraint(
+    ::Optimizer, ::Type{MOI.ScalarAffineFunction{Float64}}, ::Type{F}
+) where {F <: Union{
+    MOI.EqualTo{Float64},
+    MOI.LessThan{Float64},
+    MOI.GreaterThan{Float64}
+}}
+    return true
+end
+
+_SINGLE_VARIABLE, _SCALAR_AFFINE
+function MOI.get(::Optimizer, ::MOI.ObjectiveFunctionType)
+    model.objective_type == _NLP              && return nothing
+    model.objective_type == _SINGLE_VARIABLE  && return MOI.SingleVariable
+    model.objective_type == _SCALAR_AFFINE    && return MOI.ScalarAffineFunction{Float64}
+end
 #=
 
  Function: MOI.supports_constraint
@@ -893,7 +1000,7 @@ end
  Brief: Reuturns the best known bound on an optimal objective value
 
 =#
-function MOI.get(model::Optimizer,::MOI.ObjectiveBound)
+function MOI.get(model::Optimizer, ::MOI.ObjectiveBound)
     bound = Cdouble[-1]
     if model.use_LSsolveMIP == true
         ret = LSgetInfo(model.ptr, LS_DINFO_MIP_BESTBOUND, bound)
@@ -1371,6 +1478,53 @@ _get_Lindo_sense(model::Optimizer) = _SENSE[model.objective_sense]
 =#
 function MOI.set(model::Optimizer, ::MOI.NLPBlock, nlp_data::MOI.NLPBlockData)
     model.nlp_data = nlp_data
+end
+
+
+
+
+function MOI.add_constraint(model::Optimizer, func::MOI.ScalarAffineFunction{Float64}, set::Set) where{Set <: Union{MOI.EqualTo{Float64}, MOI.LessThan{Float64}, MOI.GreaterThan{Float64}}}
+        row_index = _get_next_row(model)
+        con_index = MOI.ConstraintIndex{typeof(func), typeof(set)}(row_index)
+        len = length(func.terms)
+        coef      = map(x -> (func.terms)[x].coefficient, 1:len)
+        var_index = map(x -> (func.terms)[x].variable_index.value, 1:len)
+        # println("coef => ", coef)
+        # println("var_index => ", var_index)
+        if typeof(set) == MOI.EqualTo{Float64}
+                conType = 'E'
+                rhs     = set.value
+        elseif typeof(set) == MOI.LessThan{Float64}
+                conType = 'L'
+                rhs     = set.upper
+        else
+                conType = 'G'
+                rhs     = set.lower
+        end
+
+        con_info  = _ConstraintInfo(coef, var_index, rhs, conType)
+        model.affine_constraint_info[row_index] = con_info
+        return con_index
+end
+
+function MOI.set(model::Optimizer, ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}, func::MOI.ScalarAffineFunction{Float64})
+
+        return model.objective_type = _SCALAR_AFFINE
+end
+
+function MOI.get(
+    model::Optimizer,
+    ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}},
+)
+        terms = MOI.ScalarAffineTerm{Float64}[]
+        constant = [0.1]
+        return MOI.ScalarAffineFunction(terms, constant[])
+end
+
+
+function MOI.set(model::Optimizer, ::MOI.ObjectiveFunction{MOI.SingleVariable}, func::MOI.SingleVariable)
+        model.objective_type = _SINGLE_VARIABLE
+        return
 end
 
 #=
