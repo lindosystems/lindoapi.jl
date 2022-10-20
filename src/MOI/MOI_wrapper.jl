@@ -121,7 +121,7 @@ mutable struct Env
 
     =#
     function Env()
-        fn = joinpath(PATH, "license/lndapi130.lic")
+        fn = joinpath(PATH, "license/lndapi140.lic")
         key = Vector{UInt8}(undef, 1024)
         ret = LSloadLicenseString(fn, key)
         if ret != 0
@@ -170,7 +170,7 @@ Base.unsafe_convert(::Type{Ptr{Cvoid}}, env::Env) = env.ptr::Ptr{Cvoid}
  Param use_LSsolveMIP: A flag to determin weather or not to use LSsolveMIP()
     set to true in MOI.add_constraint located in MOI_var.jl
  Paran use_Global: A flag to toggle the Global solver on and off.
-    Can be set by MOI.set(model::Optimizer, raw::MOI.RawParameter, value)
+    Can be set by MOI.set(model::Optimizer, raw::MOI.RawOptimizerAttribute, value)
  Prama nlp_data: A MOI struct that holds any nonliner objective or constraint
  Param load_index: Used as a cursor to the last nlp_data to be loaded into model
  Param objective_sense: To hold weater the model is to be Minimized or Maximized
@@ -525,6 +525,10 @@ function _parse(model::Optimizer,load::Bool)
     end
 end
 
+
+
+
+
 #=
 
  Function MOI.optimize!:
@@ -534,8 +538,12 @@ end
         updates model.lindoTerminationStatus
 
 =#
-function MOI.optimize!(model::Optimizer)
+function MOI.copy_to(dest::Optimizer, src::MOI.ModelLike)
+    return MOI.Utilities.default_copy_to(dest, src)
+end
 
+function MOI.optimize!(model::Optimizer)
+ 
     if model.loaded == false
         init_feat = Symbol[:ExprGraph]
         MOI.initialize(model.nlp_data.evaluator, init_feat)
@@ -563,9 +571,8 @@ function MOI.optimize!(model::Optimizer)
     end
     _check_ret(model, ret)
     model.lindoTerminationStatus = pnStatus[1]
-    return
+    return 
 end
-
 #=
 
  Function MOI.get: // MOI.ObjectiveValue
@@ -674,9 +681,11 @@ end
  Returns: The reduced cost of the variable.
 
  JuMP Sample: JuMP.reduced_cost(x[1])
+
+ TODO: VariableIndex not defined
 =#
 function MOI.get(model::Optimizer, attr::MOI.ConstraintDual,
-    index::MOI.ConstraintIndex{MOI.SingleVariable, MOI.EqualTo{Float64}})
+    index::MOI.ConstraintIndex{MOI.VariableIndex, MOI.EqualTo{Float64}})
     sense = MOI.get(model, MOI.ObjectiveSense())
     if model.reducedCosts_retrived == false
         _getReducedCosts(model)
@@ -686,7 +695,7 @@ function MOI.get(model::Optimizer, attr::MOI.ConstraintDual,
 end
 
 function MOI.get(model::Optimizer, attr::MOI.ConstraintDual,
-    index::MOI.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}})
+    index::MOI.ConstraintIndex{MOI.VariableIndex, MOI.LessThan{Float64}})
     sense = MOI.get(model, MOI.ObjectiveSense())
     if model.reducedCosts_retrived == false
         _getReducedCosts(model)
@@ -708,7 +717,7 @@ function MOI.get(model::Optimizer, attr::MOI.ConstraintDual,
 end
 
 function MOI.get(model::Optimizer, attr::MOI.ConstraintDual,
-    index::MOI.ConstraintIndex{MOI.SingleVariable, MOI.GreaterThan{Float64}})
+    index::MOI.ConstraintIndex{MOI.VariableIndex, MOI.GreaterThan{Float64}})
     sense = MOI.get(model, MOI.ObjectiveSense())
     if model.reducedCosts_retrived == false
         _getReducedCosts(model)
@@ -842,6 +851,7 @@ end
 MOI.supports(::Optimizer, ::MOI.SolverName) = true
 MOI.supports(::Optimizer, ::MOI.RawSolver) = true
 MOI.supports(::Optimizer, ::MOI.Name) = false
+MOI.supports_incremental_interface(::Optimizer) = true
 MOI.supports(::Optimizer, ::MOI.Silent) = true
 MOI.supports(::Optimizer, ::MOI.TimeLimitSec) = false
 MOI.supports(::Optimizer, ::MOI.NumberOfThreads) = false
@@ -851,15 +861,15 @@ MOI.supports(::Optimizer, ::MOI.VariablePrimal, ::Type{MOI.VariableIndex}) = tru
 MOI.supports(::Optimizer, ::MOI.ObjectiveSense) = true
 MOI.supports(::Optimizer, ::MOI.NLPBlock) = true
 MOI.supports(::Optimizer, ::MOI.RawStatusString) = true
-MOI.supports(::Optimizer, ::MOI.RawParameter) = true
+MOI.supports(::Optimizer, ::MOI.RawOptimizerAttribute) = true
 MOI.supports(::Optimizer, ::MOI.ResultCount) = true
 MOI.supports(::Optimizer, ::MOI.PrimalStatus) = true
 MOI.supports(::Optimizer, ::MOI.DualStatus) = true
 MOI.supports(::Optimizer, ::MOI.ConstraintDual) = true
 MOI.supports(::Optimizer, ::MOI.ObjectiveFunctionType) = true
-MOI.supports(::Optimizer, ::MOI.VariableName, ::Type{MOI.VariableIndex}) = true
+#MOI.supports(::Optimizer, ::MOI.VariableName, ::Type{MOI.VariableIndex}) = true
 
-MOI.get(::Optimizer, ::MOI.ObjectiveFunctionType) = MOI.SingleVariable
+MOI.get(::Optimizer, ::MOI.ObjectiveFunctionType) = MOI.VariableIndex
 #=
 
  Function: MOI.supports_constraint
@@ -873,7 +883,7 @@ Example: From JuMP @variable(model, x, Int) this will MOI.add_variables to
  Returns: True if the MOI wrapper Supports a constraint
           Flase if not.
 =#
-function MOI.supports_constraint( ::Optimizer, ::Type{MOI.SingleVariable},
+function MOI.supports_constraint( ::Optimizer, ::Type{MOI.VariableIndex},
     ::Type{F}) where {
                 F<:Union{
                         MOI.ZeroOne,
@@ -916,7 +926,7 @@ MOI.get(::Optimizer, ::MOI.ResultCount) = 1
 
 #=
 
- Function: MOI.get // MOI.RawParameter
+ Function: MOI.get // MOI.RawOptimizerAttribute
 
  Brief: This funciton is used to get model.use_Global a Boolen value
 
@@ -926,7 +936,7 @@ MOI.get(::Optimizer, ::MOI.ResultCount) = 1
           false otherwise
 
 =#
-function MOI.get(model::Optimizer, raw::MOI.RawParameter)
+function MOI.get(model::Optimizer, raw::MOI.RawOptimizerAttribute)
     raw.name == "use_Global"   && return model.use_Global
     raw.name == "silent"       && return model.silent
     raw.name == "solverMethod" && return model.solverMethod
@@ -936,7 +946,7 @@ end
 
 #=
 
- Function: MOI.set // MOI.RawParameter
+ Function: MOI.set // MOI.RawOptimizerAttribute
 
  Brief: This funciton is used to set model.use_Global to true or false
 
@@ -945,7 +955,7 @@ end
  Returns: nothing
 
 =#
-function MOI.set(model::Optimizer, raw::MOI.RawParameter, value::Bool)
+function MOI.set(model::Optimizer, raw::MOI.RawOptimizerAttribute, value::Bool)
     if raw.name == "use_Global"
         model.use_Global = value
     elseif raw.name == "silent"
@@ -965,7 +975,7 @@ end
 • LS_METHOD_NLP: 4.
 
 =#
-function MOI.set(model::Optimizer, raw::MOI.RawParameter, value)
+function MOI.set(model::Optimizer, raw::MOI.RawOptimizerAttribute, value)
     if raw.name == "solverMethod"
         model.solverMethod = Int32(value)
     else
@@ -1197,25 +1207,25 @@ end
 
 #=
 
-    Function: MOI.get // ::MOI.SolveTime
+    Function: MOI.get // ::MOI.SolveTimeSec
 
     Brief: Calls LSgetInfo to get the solve time
 
     Returns: solve time
 =#
-function MOI.get(model::Optimizer, ::MOI.SolveTime)
+function MOI.get(model::Optimizer, ::MOI.SolveTimeSec)
     if model.use_Global == true
-        solveTime = Int32[0]
-        ret = LSgetInfo(model.ptr, LS_IINFO_GOP_TOT_TIME, solveTime)
+        SolveTimeSec = Int32[0]
+        ret = LSgetInfo(model.ptr, LS_IINFO_GOP_TOT_TIME, SolveTimeSec)
     elseif model.use_LSsolveMIP == true
-        solveTime = Cdouble[0]
-        ret = LSgetInfo(model.ptr, LS_DINFO_MIP_TOT_TIME, solveTime)
+        SolveTimeSec = Cdouble[0]
+        ret = LSgetInfo(model.ptr, LS_DINFO_MIP_TOT_TIME, SolveTimeSec)
     else
-        solveTime = Int32[0]
-        ret = LSgetInfo(model.ptr, LS_IINFO_ELAPSED_TIME, solveTime)
+        SolveTimeSec = Int32[0]
+        ret = LSgetInfo(model.ptr, LS_IINFO_ELAPSED_TIME, SolveTimeSec)
     end
     _check_ret(model, ret)
-    return solveTime[1]
+    return SolveTimeSec[1]
 end
 
 #=

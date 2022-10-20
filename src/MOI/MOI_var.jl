@@ -57,18 +57,18 @@ end
 
 =#
 function MOI.add_constraint(model::Optimizer,
-    f::MOI.SingleVariable,
+    f::MOI.VariableIndex,
     s::Set
 ) where{Set <: Union{MOI.ZeroOne, MOI.Integer}}
     model.use_LSsolveMIP = true
-    info = _info(model, f.variable)
+    info = _info(model, f)
 
     if typeof(s) == MOI.ZeroOne
         info.vtype = 'B'
     else
         info.vtype = 'I'
     end
-    return MOI.ConstraintIndex{MOI.SingleVariable,typeof(s)}(f.variable.value)
+    return MOI.ConstraintIndex{MOI.VariableIndex,typeof(s)}(f.value)
 end
 
 #=
@@ -87,10 +87,10 @@ end
  Returns: ConstraintIndex
 =#
 function MOI.add_constraint(model::Optimizer,
-    f::MOI.SingleVariable,
+    f::MOI.VariableIndex,
     s::Set
 ) where{Set <: Union{MOI.LessThan{Float64},MOI.GreaterThan{Float64},MOI.Interval{Float64}}}
-    info = _info(model, f.variable)
+    info = _info(model, f)
     if typeof(s) == MOI.LessThan{Float64}
         info.upper_bound_bounded = s.upper
     elseif typeof(s) == MOI.GreaterThan{Float64}
@@ -100,5 +100,5 @@ function MOI.add_constraint(model::Optimizer,
         info.upper_bound_bounded = s.upper
     end
 
-    return MOI.ConstraintIndex{MOI.SingleVariable,typeof(s)}(f.variable.value)
+    return MOI.ConstraintIndex{MOI.VariableIndex,typeof(s)}(f.value)
 end
