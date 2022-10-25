@@ -115,4 +115,25 @@ function pre_to_post(pre_list, child_count_list)
         end
     end
     return post_list
+end
+#
+#
+#
+#
+function lp_to_post(instructionList, vars, coeffs, rhs)
+    pos = 1
+    for i in eachindex(vars)
+        instructionList[pos] = coeffs[i] ; pos += 1
+        instructionList[pos] = vars[i]   ; pos += 1
+        instructionList[pos] = :*        ; pos += 1
+        if i%2 == 0
+            instructionList[pos] = :+ ; pos += 1
+        end
     end
+    if instructionList[pos-1] != :+
+        instructionList[pos] = :+  ; pos += 1
+    end
+    instructionList[pos] = rhs ; pos += 1
+    instructionList[pos] = :- 
+    return instructionList
+end
