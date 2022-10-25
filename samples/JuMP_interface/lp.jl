@@ -52,10 +52,10 @@ model = Model(Lindoapi.Optimizer)
 )
 
 # Next the constraints
-cons[1] = @NLconstraint(model, 3*x1               + 2*x4  == 20)
-cons[2] = @NLconstraint(model,        6*x2        + 9*x4  >= 20)
-cons[3] = @NLconstraint(model, 4*x1 + 5*x2 + 8*x3         == 40)
-cons[4] = @NLconstraint(model,        7*x2 +   x3         >= 10)
+cons[1] = @constraint(model, 3*x1               + 2*x4  == 20)
+cons[2] = @constraint(model,        6*x2        + 9*x4  >= 20)
+cons[3] = @constraint(model, 4*x1 + 5*x2 + 8*x3         == 40)
+cons[4] = @constraint(model,        7*x2 +   x3         >= 10)
 
 # Objective function
 @NLobjective(model, Min, x1 + x2 + x3 + x4)
