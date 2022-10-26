@@ -14,6 +14,17 @@
 
 =#
 
+
+function MOI.add_variable(model::Optimizer)
+
+    index = CleverDicts.add_item(model.variable_info,_VariableInfo(MOI.VariableIndex(0), 0))
+    info = _info(model, index)
+    info.index = index
+    info.column = _get_next_column(model)
+
+    return index
+end
+
 #=
 
  Function add_variables:
