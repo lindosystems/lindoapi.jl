@@ -137,3 +137,24 @@ function lp_to_post(instructionList, vars, coeffs, rhs)
     instructionList[pos] = :- 
     return instructionList
 end
+
+function linear_obj_post(instructionList, vars, coeffs )
+    pos = 1
+    for i in eachindex(vars)
+        instructionList[pos] = coeffs[i] ; pos += 1
+        instructionList[pos] = vars[i]   ; pos += 1
+        instructionList[pos] = :*        ; pos += 1
+        if i >= 2
+            instructionList[pos] = :+ ; pos += 1
+        end
+    end
+
+    return instructionList
+end
+
+function  var_obj_to_post(instructionList, vars )
+    instructionList[1] = vars[1]
+    return instructionList
+end
+
+
