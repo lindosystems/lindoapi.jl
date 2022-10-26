@@ -58,7 +58,7 @@ cons[3] = @constraint(model, 4*x1 + 5*x2 + 8*x3         == 40)
 cons[4] = @constraint(model,        7*x2 +   x3         >= 10)
 
 # Objective function
-@NLobjective(model, Min, x1 + x2 + x3 + x4)
+@objective(model, Min, x1 + x2 + x3 + x4)
 
 # Call Optimizer
 optimize!(model)
