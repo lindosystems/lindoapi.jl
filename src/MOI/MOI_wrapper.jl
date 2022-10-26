@@ -20,6 +20,11 @@ const _CONS_ =  Union{
     MOI.EqualTo{Float64},
     }
 
+const _OBJ_ =  Union{
+    MOI.ScalarAffineFunction{Float64},
+    MOI.VariableIndex,
+    }
+
 const CleverDicts = MOI.Utilities.CleverDicts
 const _HASH = CleverDicts.key_to_index
 const _INVERSE_HASH = x -> CleverDicts.index_to_key(MOI.VariableIndex, x)
@@ -37,7 +42,8 @@ const _SENSE = Dict(
     MOI.MAX_SENSE => LS_MAX,)
 
 @enum( _ObjectiveType,
-    _SCALAR_AFFINE
+    _SCALAR_AFFINE,
+    _VAR_INDEX,
 )
 
 @enum( _ConType,
@@ -54,6 +60,23 @@ const _SENSE = Dict(
     _EQUAL_TO,
 )
 
+#=
+
+ mutable struct: _OBJInfo
+
+=#
+mutable struct _OBJInfo
+    isSet::Bool
+    coeffs::Vector{Float64}
+    vars::Vector{MOI.VariableIndex}
+    type::_ObjectiveType
+
+    function _OBJInfo( )
+        objInfo = new( )
+        objInfo.isSet = false
+        return objInfo
+    end
+end
 #=
 
  mutable struct: _ScalarAffineConInfo
@@ -270,11 +293,12 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
         typeof(_INVERSE_HASH),
     }
     ScalarAffineCon_info::Dict{MOI.ConstraintIndex,_ScalarAffineConInfo}
+    n_unloaded_LP_cons::Int64
     #enable_interrupts::Bool
     silent::Bool
     objective_type::_ObjectiveType
     objective_function::_SUPPORTED_OBJECTIVE_FUNCTION
-    
+    objective::_OBJInfo
     #=
 
      Function: Optimizer
@@ -324,6 +348,10 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
             _INVERSE_HASH,
         )
         model.ScalarAffineCon_info = Dict{MOI.ConstraintIndex,_ScalarAffineConInfo}()
+        model.n_unloaded_LP_cons = 0
+        model.objective = _OBJInfo()
+
+        model.nlp_data = MOI.NLPBlockData([], _EmptyNLPEvaluator(), false)
         finalizer(model) do m
             ret = LSdeleteModel(m.ptr)
             _check_ret(m,ret)
@@ -341,6 +369,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     end
 end
 
+struct _EmptyNLPEvaluator <: MOI.AbstractNLPEvaluator end
 # implement Base.cconvert
 Base.cconvert(::Type{Ptr{Cvoid}}, model::Optimizer) = model
 # implement Base.unsafe_convert
@@ -504,7 +533,7 @@ end
 function _parse(model::Optimizer,load::Bool)
     
     nlp_con_count = length(model.nlp_data.constraint_bounds)
-    lp_con_count  = length(model.ScalarAffineCon_info)
+    lp_con_count  = model.n_unloaded_LP_cons
     con_count = nlp_con_count + lp_con_count
     
     # initilze list with some memory
@@ -528,10 +557,26 @@ function _parse(model::Optimizer,load::Bool)
 
     # Add Objective to argument lists
     if load
-        instructionList = []
-        child_count_list = []
-        instructionList, child_count_list = get_pre_order(MOI.objective_expr(model.nlp_data.evaluator), instructionList, child_count_list)
-        instructionList = pre_to_post(instructionList,child_count_list)
+
+        # if the bjective is not set then it is in the NLP block
+        if model.objective.isSet == false
+            instructionList = []
+            child_count_list = []
+            instructionList, child_count_list = get_pre_order(MOI.objective_expr(model.nlp_data.evaluator), instructionList, child_count_list)
+            instructionList = pre_to_post(instructionList,child_count_list)
+        elseif model.objective.type == _SCALAR_AFFINE
+            # build an instruction list
+            N = length(model.objective.vars)*4 -1 
+            instructionList = Vector{Any}(undef,N)
+            instructionList = linear_obj_post(instructionList, model.objective.vars , model.objective.coeffs)
+        else
+            instructionList = Vector{Any}(undef,1)
+            instructionList = var_obj_to_post(instructionList, model.objective.vars)
+            # build and instruction list..
+        end
+        # if instructionList = [] no objective set should an error be thrown??
+
+
         code, numval, ikod, ival = _add_to_expr_list(model, code, numval, ikod, ival, instructionList)
         objs_length[iobj] = ikod - (objs_beg[iobj]+1)
         iobj += 1
@@ -565,6 +610,7 @@ function _parse(model::Optimizer,load::Bool)
             conInfo.icon = icon
             icon += 1
             conInfo.added = true
+            model.n_unloaded_LP_cons -= 1
         end
         
     end
@@ -616,15 +662,20 @@ end
 # end
 
 function MOI.optimize!(model::Optimizer)
-    
     if model.loaded == false
         init_feat = Symbol[:ExprGraph]
-        MOI.initialize(model.nlp_data.evaluator, init_feat)
+        
+        if length(model.nlp_data.constraint_bounds) > 0 ||  model.nlp_data.has_objective
+            MOI.initialize(model.nlp_data.evaluator, init_feat)
+        end
+
         _parse(model, true)
         model.loaded = true
     elseif length(model.nlp_data.constraint_bounds) > model.load_index          # Add more constraints
         init_feat = Symbol[:ExprGraph]                                          # Init expresion graph access
-        MOI.initialize(model.nlp_data.evaluator, init_feat)
+        if length(model.nlp_data.constraint_bounds) > 0 ||  model.nlp_data.has_objective
+            MOI.initialize(model.nlp_data.evaluator, init_feat)
+        end
         _parse(model, false)                                                    # Parse added constraints
         model.primal_retrived = false                                           # Set primal retrived set to false
     else                                                                        # to get the new primal variables
@@ -1011,9 +1062,9 @@ MOI.supports(::Optimizer, ::MOI.PrimalStatus) = true
 MOI.supports(::Optimizer, ::MOI.DualStatus) = true
 MOI.supports(::Optimizer, ::MOI.ConstraintDual) = true
 MOI.supports(::Optimizer, ::MOI.ObjectiveFunctionType) = true
-#MOI.supports(::Optimizer, ::MOI.VariableName, ::Type{MOI.VariableIndex}) = true
 
-MOI.get(::Optimizer, ::MOI.ObjectiveFunctionType) = MOI.VariableIndex
+
+
 #=
 
  Function: MOI.supports_constraint
@@ -1047,6 +1098,17 @@ function MOI.supports_constraint( ::Optimizer, ::Type{MOI.ScalarAffineFunction{F
     return true
 end
 
+
+function MOI.supports(
+    ::Optimizer,
+    ::MOI.ObjectiveFunction{F},
+) where {
+    F<:Union{
+        MOI.ScalarAffineFunction{Float64},
+    },
+}
+    return true
+end
 
 #=
 
@@ -1535,6 +1597,7 @@ function MOI.set(model::Optimizer, ::MOI.NLPBlock, nlp_data::MOI.NLPBlockData)
     model.nlp_data = nlp_data
 end
 
+
 #=
 
  Detcahed MOI_wrapper related code
@@ -1544,5 +1607,6 @@ end
 include("MOI_expression_tree.jl")
 include("MOI_var.jl")
 include("MOI_cons.jl")
+include("MOI_obj.jl")
 include("MOI_Callback.jl")
 include("supportedOperators.jl")
