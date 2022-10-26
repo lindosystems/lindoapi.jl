@@ -712,13 +712,22 @@ function MOI.delete(
     index::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},<:_CONS_}
 )
 
-    if model.nlp_count == 0
-        conInfo=model.ScalarAffineCon_info[index]
-        nCons = 1
-        paiCons = [conInfo.icon - 1]
-        LSdeleteConstraints(model.ptr, nCons, paiCons)
-    else
-        throw(MOI.DeleteNotAllowed(index))
+    if model.nlp_count > 0 throw(MOI.DeleteNotAllowed(index)) end
+
+
+
+    conInfo=model.ScalarAffineCon_info[index]
+    nCons = 1
+    deleted_icon = conInfo.icon
+    paiCons = [deleted_icon - 1]
+    ret = LSdeleteConstraints(model.ptr, nCons, paiCons)
+    _check_ret(model, ret)
+
+    # fix icod of each constraint ...
+    for (key,conInfo) in model.ScalarAffineCon_info
+        if conInfo.icon > deleted_icon
+            conInfo.icon -= 1
+        end
     end
 
     return
