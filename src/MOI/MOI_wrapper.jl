@@ -758,8 +758,9 @@ end
 
 =#
 function _getReducedCosts(model::Optimizer)
+    # println( typeof(model.next_column - 1))
     nVars = model.next_column - 1
-    resize!(model.reducedCosts, nVars)
+    model.reducedCosts = Vector{Cdouble}(undef, nVars)
     if model.use_LSsolveMIP == true
         ret = LSgetMIPReducedCosts(model.ptr, model.reducedCosts)
     else
@@ -854,8 +855,11 @@ end
  Returns: nErrpsol an error code to check if LSERR_INFO_NOT_AVAILABLE
 =#
 function _getDualSolution(model::Optimizer)
-    ncons = length(model.nlp_data.constraint_bounds)
-    resize!(model.dual_values, ncons)
+    # number of constraints in the model comes from 
+    # length of nlp block constraints 
+    # length of ScalarAffineCon_info 
+    nCons = length(model.nlp_data.constraint_bounds) + length(model.ScalarAffineCon_info)
+    model.dual_values = Vector{Cdouble}(undef, nCons)
     if model.use_LSsolveMIP == true
         nErrpsol = LSgetMIPDualSolution(model.ptr, model.dual_values)
     else
@@ -880,6 +884,29 @@ function MOI.get(model::Optimizer, attr::MOI.NLPBlockDual)
         nErrpsol = _getDualSolution(model::Optimizer)
     end
     return model.dual_values
+end
+
+#=
+    Function MOI.get // MOI.NLPBlockDual
+
+    Brief: gets dual prices for each constraint in the NLPBlock.
+
+    Param model:
+    Param attr: The Lagrange multipliers on the constraints from the NLPBlock
+
+    Returns padDual: The Lagrange multipliers
+=#
+function MOI.get(model::Optimizer,
+                 attr::MOI.ConstraintDual,
+                 index::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},<:_CONS_},)
+
+    if model.dual_retrived == false
+        nErrpsol = _getDualSolution(model::Optimizer)
+    end
+    # get the constraints icon
+    conInfo=model.ScalarAffineCon_info[index]
+    dual_value = (model.dual_values)[conInfo.icon]
+    return dual_value
 end
 #=
 
@@ -916,7 +943,11 @@ end
      with the option of broadcasting to get multiple
 =#
 function MOI.get(model::Optimizer, attr::Slack_or_Surplus)
-    slack = Vector{Cdouble}(undef, length(model.nlp_data.constraint_bounds))
+    # number of constraints in the a model is Curently
+    # length of nlp block constraints 
+    # length of ScalarAffineCon_info 
+    nCons = length(model.nlp_data.constraint_bounds) + length(model.ScalarAffineCon_info)
+    slack = Vector{Cdouble}(undef, nCons)
     if model.use_LSsolveMIP == true
         ret = LSgetMIPSlacks(model.ptr, slack)
     else
