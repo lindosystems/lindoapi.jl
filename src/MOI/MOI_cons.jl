@@ -26,7 +26,7 @@ function MOI.add_constraint(model::Optimizer,
     conInfo.ftype  = _SCALAR_AFFINE_CON
     conInfo.coeffs = coeffs
     conInfo.vars   = vars 
-
+    model.n_unloaded_LP_cons += 1
     # handel each type of constants
     if typeof(s) == MOI.LessThan{Float64}
         conInfo.rhs = s.upper
