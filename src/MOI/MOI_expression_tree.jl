@@ -115,4 +115,77 @@ function pre_to_post(pre_list, child_count_list)
         end
     end
     return post_list
+end
+
+
+#=
+
+ Function linear_con_to_post:
+ Breif: build a post order instructionList for a constraint a'x - b
+
+ Param instructionList: An empty list to hold the post-order traversal.
+ Param vars: An array of MOI.VariableIndex "x"
+ Param coeffs: An array of floats "a"
+ Param rhs: A float "b"
+
+ Return instructionList:
+
+=#
+function linear_con_to_post(instructionList, vars, coeffs, rhs)
+    pos = 1
+    for i in eachindex(vars)
+        instructionList[pos] = coeffs[i] ; pos += 1
+        instructionList[pos] = vars[i]   ; pos += 1
+        instructionList[pos] = :*        ; pos += 1
+        if i >= 2 
+            instructionList[pos] = :+ ; pos += 1
+        end
     end
+    instructionList[pos] = rhs ; pos += 1
+    instructionList[pos] = :- 
+    return instructionList
+end
+
+#=
+
+ Function linear_obj_post:
+ Breif: build a post order instructionList for an objective a'x
+
+ Param instructionList: An empty list to hold the post-order traversal.
+ Param vars: An array of MOI.VariableIndex "x"
+ Param coeffs: An array of floats "a"
+
+ Return instructionList:
+
+=#
+function linear_obj_post(instructionList, vars, coeffs )
+    pos = 1
+    for i in eachindex(vars)
+        instructionList[pos] = coeffs[i] ; pos += 1
+        instructionList[pos] = vars[i]   ; pos += 1
+        instructionList[pos] = :*        ; pos += 1
+        if i >= 2
+            instructionList[pos] = :+ ; pos += 1
+        end
+    end
+
+    return instructionList
+end
+
+#=
+
+ Function var_obj_to_post:
+ Breif: build a post order instructionList for an objective x
+
+ Param instructionList: An empty list to hold the post-order traversal.
+ Param vars: A MOI.VariableIndex "x"
+
+ Return instructionList:
+
+=#
+function  var_obj_to_post(instructionList, vars )
+    instructionList[1] = vars[1]
+    return instructionList
+end
+
+
