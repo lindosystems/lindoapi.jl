@@ -7,14 +7,20 @@
 
  Bugs:
 
- TODO: Implement MOI.add_constraint().
-       To attach a constraint to a variable JuMP calls MOI.add_constraint().
-       The data sent to this function could then be attached to the variables data
-       see _VariableInfo.
-
 =#
 
 
+#=
+
+ Function add_variable:
+ Breif: Add one variable to a model.
+
+ Param model:
+
+
+ Return indices: a MOI.VariableIndex
+
+=#
 function MOI.add_variable(model::Optimizer)
 
     index = CleverDicts.add_item(model.variable_info,_VariableInfo(MOI.VariableIndex(0), 0))
