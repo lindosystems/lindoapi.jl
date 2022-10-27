@@ -63,6 +63,12 @@ const _SENSE = Dict(
 #=
 
  mutable struct: _OBJInfo
+ Brief: A data type for storing non-NLP objective functions
+ Param isSet  use to flag if there is an objective function set 
+ Param coeffs holds coefficents of objective funciton
+ Param vars holds the variables of the objective function
+ Param type the type of objective function
+ 
 
 =#
 mutable struct _OBJInfo
@@ -70,7 +76,13 @@ mutable struct _OBJInfo
     coeffs::Vector{Float64}
     vars::Vector{MOI.VariableIndex}
     type::_ObjectiveType
+    #=
 
+     Function: _OBJInfo
+     Brief: cereates and _OBJInfo that only indicates 
+        that the objective function is not set
+
+    =#
     function _OBJInfo( )
         objInfo = new( )
         objInfo.isSet = false
@@ -81,7 +93,15 @@ end
 
  mutable struct: _ScalarAffineConInfo
  Brief: A data type for storing scalar affine constraint info
- Param index: 
+
+ Param   index  The constraints index in the MOI
+ Param   icon   The constrainta index in the LINDO API
+ Param   ftype  Type of constraint funciton
+ Param   ctype  Type if constraint
+ Param   rhs    Right hand side of constraint
+ Param   coeffs Constraint coefficents
+ Param   vars   VariableIndexs in the constraint
+ Param   added  Indicate if the constraint has been added to the instructionList
 
 =#
 mutable struct _ScalarAffineConInfo
@@ -369,7 +389,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     end
 end
 
-struct _EmptyNLPEvaluator <: MOI.AbstractNLPEvaluator end
+struct _EmptyNLPEvaluator <: MOI.AbstractNLPEvaluator end 
 # implement Base.cconvert
 Base.cconvert(::Type{Ptr{Cvoid}}, model::Optimizer) = model
 # implement Base.unsafe_convert
@@ -602,7 +622,7 @@ function _parse(model::Optimizer,load::Bool)
         if conInfo.added == false
             N = length(conInfo.vars)*4 + 1 
             instructionList = Vector{Any}(undef,N)
-            instructionList = lp_to_post(instructionList, conInfo.vars , conInfo.coeffs, conInfo.rhs)
+            instructionList = linear_con_to_post(instructionList, conInfo.vars , conInfo.coeffs, conInfo.rhs)
             ctype[icon] = conInfo.ctype
             cons_beg[icon] = ikod - 1
             code, numval, ikod, ival = _add_to_expr_list(model,code, numval, ikod, ival, instructionList)
@@ -755,8 +775,15 @@ function _getPrimalSolution(model::Optimizer)
 end
 
 #=
- Function MOI.delete ScalarAffineFunction Constraints ..
 
+ Function MOI.delete in MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},<:_CONS_}
+ Brief: Delets a single ScalarAffine constraint from a model 
+ 
+
+
+ Param model:
+ index: The MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},<:_CONS_} 
+   used to locate the constraint in the dict.
 =#
 function MOI.delete(
     model::Optimizer,
