@@ -600,7 +600,7 @@ function _parse(model::Optimizer,load::Bool)
     # starting from the first to last unloaded constraint
     for (key,conInfo) in model.ScalarAffineCon_info 
         if conInfo.added == false
-            N = length(conInfo.vars)*3 + Int(ceil(length(conInfo.vars)/2)) + 2
+            N = length(conInfo.vars)*4 + 1 
             instructionList = Vector{Any}(undef,N)
             instructionList = lp_to_post(instructionList, conInfo.vars , conInfo.coeffs, conInfo.rhs)
             ctype[icon] = conInfo.ctype
