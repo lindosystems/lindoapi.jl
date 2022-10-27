@@ -1,4 +1,34 @@
+#=
 
+ File: MOI_cons.jl
+ Brief: The functions in this file are used to add constraints
+        to a MOI model.
+
+ Authors: James Haas,
+
+ Bugs:
+
+=#
+
+
+#=
+
+ Function add_constraint in MOI.ScalarAffineFunction{Float64}
+ Breif: Add one or more variables to a model.
+
+ Param model:
+ Param f::MOI.ScalarAffineFunction{Float64} 
+        The scalar-valued affine function a'x
+        f can be seperated into its terms (f.terms)
+        Each term has a MOI.VariableIndex (term.variable) 
+        and a coefficient (term.coefficient).
+
+        s <: _CONS_ where _CONS_ are allowed constants
+         == , <= and >=
+
+
+ Return index: MOI.ConstraintIndex{typeof(f),typeof(s)}(row number)
+=#
 function MOI.add_constraint(model::Optimizer,
                             f::MOI.ScalarAffineFunction{Float64},
                             s::S
