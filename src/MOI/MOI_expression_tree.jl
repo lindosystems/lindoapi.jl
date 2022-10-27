@@ -126,12 +126,9 @@ function lp_to_post(instructionList, vars, coeffs, rhs)
         instructionList[pos] = coeffs[i] ; pos += 1
         instructionList[pos] = vars[i]   ; pos += 1
         instructionList[pos] = :*        ; pos += 1
-        if i%2 == 0
+        if i >= 2 
             instructionList[pos] = :+ ; pos += 1
         end
-    end
-    if instructionList[pos-1] != :+
-        instructionList[pos] = :+  ; pos += 1
     end
     instructionList[pos] = rhs ; pos += 1
     instructionList[pos] = :- 
