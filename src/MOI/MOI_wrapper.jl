@@ -632,7 +632,6 @@ function _parse(model::Optimizer,load::Bool)
             child_count_list = []
             instructionList, child_count_list = get_pre_order(MOI.objective_expr(model.nlp_data.evaluator), instructionList, child_count_list)
             instructionList = pre_to_post(instructionList,child_count_list)
-            println(instructionList)
         elseif model.objective.type == _SCALAR_AFFINE
             # build an instruction list
             N = length(model.objective.data.vars)*4 -1 
@@ -641,7 +640,6 @@ function _parse(model::Optimizer,load::Bool)
                                                model.objective.data.coeffs)
         else
             # ScalarQuadraticFunction  _SCALAR_QUADRATIC
-            println(" _SCALAR_QUADRATIC ")
             N = length(model.objective.data.quad_coeffs) * 6 + 3
             if (length(model.objective.data.affine_coeffs) > 0)
                 N += length(model.objective.data.affine_coeffs) * 4 + 1
@@ -654,8 +652,6 @@ function _parse(model::Optimizer,load::Bool)
                                               model.objective.data.quad_2_vars,
                                               model.objective.data.affine_vars,
                                               model.objective.data.constant)
-            println(instructionList)
-            println("N terms: ", length(model.objective.data.quad_coeffs))
         end
         # if instructionList = [] no objective set should an error be thrown??
 
