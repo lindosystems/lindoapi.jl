@@ -148,7 +148,7 @@ end
 
 #=
 
- Function linear_obj_post:
+ Function linear_obj_to_post:
  Breif: build a post order instructionList for an objective a'x
 
  Param instructionList: An empty list to hold the post-order traversal.
@@ -158,7 +158,7 @@ end
  Return instructionList:
 
 =#
-function linear_obj_post(instructionList, vars, coeffs )
+function linear_obj_to_post(instructionList, vars, coeffs )
     pos = 1
     for i in eachindex(vars)
         instructionList[pos] = coeffs[i] ; pos += 1
@@ -185,6 +185,49 @@ end
 =#
 function  var_obj_to_post(instructionList, vars )
     instructionList[1] = vars[1]
+    return instructionList
+end
+
+#=
+
+ Function quad_obj_post:
+ Breif: build a post order instructionList for an objective 1/2 x'Qx + a'x + b 
+    
+
+ Param instructionList: An empty list to hold the post-order traversal.
+ Param all otehr inputs are from _ScalarQuadraticOBJData
+
+ Return instructionList:
+
+=#
+function quad_obj_to_post(instructionList, quad_coeffs,affine_coeffs,
+                                           quad_1_vars,quad_2_vars,
+                                           affine_vars,constant)
+    pos = 1
+    instructionList[pos] = 0.5 ; pos += 1
+    for i in eachindex(quad_coeffs)
+        instructionList[pos] = quad_coeffs[i] ; pos += 1
+        instructionList[pos] = quad_1_vars[i] ; pos += 1
+        instructionList[pos] = :*             ; pos += 1
+        instructionList[pos] = quad_2_vars[i] ; pos += 1
+        instructionList[pos] = :*             ; pos += 1
+        if i >= 2
+            instructionList[pos] = :+ ; pos += 1
+        end
+    end
+    instructionList[pos] = constant ; pos += 1
+    instructionList[pos] = :+ ; pos += 1
+    instructionList[pos] = :* ; pos += 1
+    if(length(affine_coeffs) > 0)
+        instructionList[pos] = :+ ; pos += 1
+        for i in eachindex(affine_coeffs)
+            instructionList[pos] = affine_coeffs[i] ; pos += 1
+            instructionList[pos] = affine_vars[i]   ; pos += 1
+            instructionList[pos] = :*        ; pos += 1
+            instructionList[pos] = :+ ; pos += 1
+        end
+    end
+    
     return instructionList
 end
 
