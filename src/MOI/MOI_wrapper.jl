@@ -23,6 +23,7 @@ const _CONS_ =  Union{
 const _OBJ_ =  Union{
     MOI.ScalarAffineFunction{Float64},
     MOI.VariableIndex,
+    MOI.ScalarQuadraticFunction{Float64}
     }
 
 const CleverDicts = MOI.Utilities.CleverDicts
@@ -44,6 +45,7 @@ const _SENSE = Dict(
 @enum( _ObjectiveType,
     _SCALAR_AFFINE,
     _VAR_INDEX,
+    _SCALAR_QUADRATIC,
 )
 
 @enum( _ConType,
@@ -62,20 +64,64 @@ const _SENSE = Dict(
 
 #=
 
+ mutable struct: _ScalarAffineOBJData
+ Used to store data for a scalar affine objective function
+=#
+mutable struct _ScalarAffineOBJData
+    coeffs::Vector{Float64}
+    vars::Vector{MOI.VariableIndex}
+
+    function _ScalarAffineOBJData(coeffs::Vector{Float64}, vars::Vector{MOI.VariableIndex} )
+        data = new( )
+        data.coeffs = coeffs
+        data.vars = vars
+        return data
+    end
+end
+
+#=
+
+ mutable struct: _ScalarQuadraticOBJData
+ Used to store data for a scalar quadratic objective function
+ 
+=#
+mutable struct _ScalarQuadraticOBJData
+    quad_coeffs::Vector{Float64}
+    affine_coeffs::Vector{Float64}
+    quad_1_vars::Vector{MOI.VariableIndex}
+    quad_2_vars::Vector{MOI.VariableIndex}
+    affine_vars::Vector{MOI.VariableIndex}
+    constant::Float64
+    function _ScalarQuadraticOBJData(quad_coeffs::Vector{Float64},affine_coeffs::Vector{Float64},
+                                     quad_1_vars::Vector{MOI.VariableIndex},quad_2_vars::Vector{MOI.VariableIndex},
+                                     affine_vars::Vector{MOI.VariableIndex},constant::Float64)
+        data = new( )
+        data.quad_coeffs = quad_coeffs
+        data.affine_coeffs = affine_coeffs
+        data.quad_1_vars = quad_1_vars
+        data.quad_2_vars = quad_2_vars
+        data.affine_vars = affine_vars
+        data.constant = constant
+        return data
+    end
+end
+
+#=
+
  mutable struct: _OBJInfo
  Brief: A data type for storing non-NLP objective functions
  Param isSet  use to flag if there is an objective function set 
- Param coeffs holds coefficents of objective funciton
- Param vars holds the variables of the objective function
  Param type the type of objective function
+ Param data union of datatypes specific to the objective type
  
 
 =#
 mutable struct _OBJInfo
     isSet::Bool
-    coeffs::Vector{Float64}
-    vars::Vector{MOI.VariableIndex}
     type::_ObjectiveType
+    data::Union{_ScalarAffineOBJData, _ScalarQuadraticOBJData}
+
+    
     #=
 
      Function: _OBJInfo
@@ -89,6 +135,8 @@ mutable struct _OBJInfo
         return objInfo
     end
 end
+
+
 #=
 
  mutable struct: _ScalarAffineConInfo
@@ -584,15 +632,30 @@ function _parse(model::Optimizer,load::Bool)
             child_count_list = []
             instructionList, child_count_list = get_pre_order(MOI.objective_expr(model.nlp_data.evaluator), instructionList, child_count_list)
             instructionList = pre_to_post(instructionList,child_count_list)
+            println(instructionList)
         elseif model.objective.type == _SCALAR_AFFINE
             # build an instruction list
-            N = length(model.objective.vars)*4 -1 
+            N = length(model.objective.data.vars)*4 -1 
             instructionList = Vector{Any}(undef,N)
-            instructionList = linear_obj_post(instructionList, model.objective.vars , model.objective.coeffs)
+            instructionList = linear_obj_to_post(instructionList, model.objective.data.vars, 
+                                               model.objective.data.coeffs)
         else
-            instructionList = Vector{Any}(undef,1)
-            instructionList = var_obj_to_post(instructionList, model.objective.vars)
-            # build and instruction list..
+            # ScalarQuadraticFunction  _SCALAR_QUADRATIC
+            println(" _SCALAR_QUADRATIC ")
+            N = length(model.objective.data.quad_coeffs) * 6 + 3
+            if (length(model.objective.data.affine_coeffs) > 0)
+                N += length(model.objective.data.affine_coeffs) * 4 + 1
+            end
+            instructionList = Vector{Any}(undef,N)
+            instructionList = quad_obj_to_post(instructionList, 
+                                              model.objective.data.quad_coeffs,
+                                              model.objective.data.affine_coeffs,
+                                              model.objective.data.quad_1_vars,
+                                              model.objective.data.quad_2_vars,
+                                              model.objective.data.affine_vars,
+                                              model.objective.data.constant)
+            println(instructionList)
+            println("N terms: ", length(model.objective.data.quad_coeffs))
         end
         # if instructionList = [] no objective set should an error be thrown??
 
@@ -1119,9 +1182,7 @@ function MOI.supports_constraint( ::Optimizer, ::Type{MOI.VariableIndex},
 end
 
 function MOI.supports_constraint( ::Optimizer, ::Type{MOI.ScalarAffineFunction{Float64}},
-    ::Type{F}) where {
-                F<:_CONS_
-                      }
+    ::Type{F}) where { F<:_CONS_ }
     return true
 end
 
@@ -1129,11 +1190,7 @@ end
 function MOI.supports(
     ::Optimizer,
     ::MOI.ObjectiveFunction{F},
-) where {
-    F<:Union{
-        MOI.ScalarAffineFunction{Float64},
-    },
-}
+) where { F<:_OBJ_ }
     return true
 end
 
