@@ -58,8 +58,8 @@ set_optimizer_attribute(model,"use_Global",use_global)
 @variable(model, r[1:n_v] >= 0)
 @variable(model, 0 <= θ[1:n_v] <= pi)
 # Fix the position of the last vertex
-@NLconstraint(model, r[n_v] == 0)
-@NLconstraint(model, θ[n_v] == pi)
+@constraint(model, r[n_v] == 0)
+@constraint(model, θ[n_v] == pi)
 # Maximize area of the n-polygon
 @NLobjective(model,
              Max,
@@ -71,7 +71,7 @@ set_optimizer_attribute(model,"use_Global",use_global)
               r[i]^2 + r[j]^2 - 2*r[i]*r[j]*cos(θ[i] - θ[j]) <= 1
               )
 # Enforce ordering of vertex angles
-@NLconstraint(model,
+@constraint(model,
               [i = 1:(n_v - 1)],
               θ[i] - θ[i+1] <= 0
               )

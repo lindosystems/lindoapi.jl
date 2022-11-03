@@ -28,7 +28,6 @@ const LS = Lindoapi
 # Set to true to use
 # the global solver
 use_Global = false
-
 uDict = Dict(
 "Prefix" => "Lindo API Callback",
 "Postfix" => "...",)
@@ -75,8 +74,8 @@ set_optimizer_attribute(model,"use_Global", use_Global)
           )
 
 # Model constraints
-@NLconstraint(model, x^2 + y   <=  6)
-@NLconstraint(model, x   + y^2 <=  6)
+@constraint(model, x^2 + y   <=  6)
+@constraint(model, x   + y^2 <=  6)
 
 # Call the optimizer
 optimize!(model)
