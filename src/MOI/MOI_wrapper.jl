@@ -22,9 +22,13 @@ const _CONS_ =  Union{
 
 const _OBJ_ =  Union{
     MOI.ScalarAffineFunction{Float64},
-    MOI.VariableIndex,
     MOI.ScalarQuadraticFunction{Float64}
     }
+const _CON_F_TYPE =  Union{
+    MOI.ScalarAffineFunction{Float64},
+    MOI.ScalarQuadraticFunction{Float64}
+    }
+    
 
 const CleverDicts = MOI.Utilities.CleverDicts
 const _HASH = CleverDicts.key_to_index
@@ -49,7 +53,8 @@ const _SENSE = Dict(
 )
 
 @enum( _ConType,
-    _SCALAR_AFFINE_CON
+    _SCALAR_AFFINE_CON,
+    _SCALAR_QUAD_CON,
 )
 
 @enum(
@@ -108,7 +113,7 @@ end
 
 #=
 
- mutable struct: _OBJInfo
+ mutable struct: _ObjInfo
  Brief: A data type for storing non-NLP objective functions
  Param isSet  use to flag if there is an objective function set 
  Param type the type of objective function
@@ -116,7 +121,7 @@ end
  
 
 =#
-mutable struct _OBJInfo
+mutable struct _ObjInfo
     isSet::Bool
     type::_ObjectiveType
     data::Union{_ScalarAffineOBJData, _ScalarQuadraticOBJData}
@@ -124,12 +129,12 @@ mutable struct _OBJInfo
     
     #=
 
-     Function: _OBJInfo
-     Brief: cereates and _OBJInfo that only indicates 
+     Function: _ObjInfo
+     Brief: cereates and _ObjInfo that only indicates 
         that the objective function is not set
 
     =#
-    function _OBJInfo( )
+    function _ObjInfo( )
         objInfo = new( )
         objInfo.isSet = false
         return objInfo
@@ -142,29 +147,22 @@ end
  mutable struct: _ScalarAffineConInfo
  Brief: A data type for storing scalar affine constraint info
 
- Param   index  The constraints index in the MOI
- Param   icon   The constrainta index in the LINDO API
- Param   ftype  Type of constraint funciton
  Param   ctype  Type if constraint
  Param   rhs    Right hand side of constraint
  Param   coeffs Constraint coefficents
  Param   vars   VariableIndexs in the constraint
- Param   added  Indicate if the constraint has been added to the instructionList
 
 =#
-mutable struct _ScalarAffineConInfo
-    index::MOI.ConstraintIndex
-    icon::Int
-    ftype::_ConType
+mutable struct _ScalarAffineConData
+    
     ctype::Char
     rhs::Float64
     coeffs::Vector{Float64}
     vars::Vector{MOI.VariableIndex}
-    added::Bool
 
     #=
 
-     Function: _ScalarAffineConInfo
+     Function: _ScalarAffineConData
      Brief: Constructor for the type _ScalarAffineConInfo
         non param data set to defulat values
 
@@ -172,14 +170,96 @@ mutable struct _ScalarAffineConInfo
      Param column
 
     =#
-    function _ScalarAffineConInfo(index::MOI.ConstraintIndex)
-        con_info = new( )
-        con_info.index = index
-        con_info.added = false
-        return con_info
+    function _ScalarAffineConData(ctype::Char, rhs::Float64, coeffs::Vector{Float64}, vars::Vector{MOI.VariableIndex})
+        data = new()
+        data.ctype = ctype
+        data.rhs = rhs
+        data.coeffs = coeffs
+        data.vars = vars
+        return data
     end
 end    
-  
+
+#=
+
+ mutable struct: _ScalarQuadConData
+ Brief: A data type for storing scalar quadratic constraint info
+
+ Param   ctype         Type if constraint
+ Param   rhs           Right hand side of constraint
+ Param   quad_coeffs   a vector of coefficents in the quadratic part of constraint
+ Param   affine_coeffs a vector of coefficents in the affine part of constraint
+ Param   quad_1_vars   The first vector of variable index in quadratic part
+ Param   quad_2_vars   The second vector of variable index in quadratic part
+ Param   affine_vars   A vector of variable index in the affine part
+ Param   constant      A scalar constant
+=#
+mutable struct _ScalarQuadConData
+    
+    ctype::Char
+    rhs::Float64
+    quad_coeffs::Vector{Float64}
+    affine_coeffs::Vector{Float64}
+    quad_1_vars::Vector{MOI.VariableIndex}
+    quad_2_vars::Vector{MOI.VariableIndex}
+    affine_vars::Vector{MOI.VariableIndex}
+    constant::Float64
+    #=
+
+     Function: _ScalarQuadConData
+
+    =#
+    function _ScalarQuadConData(ctype::Char,rhs::Float64,quad_coeffs::Vector{Float64},
+                                affine_coeffs::Vector{Float64},quad_1_vars::Vector{MOI.VariableIndex},
+                                quad_2_vars::Vector{MOI.VariableIndex},affine_vars::Vector{MOI.VariableIndex},
+                                constant::Float64)
+        data = new( )
+        data.ctype = ctype
+        data.rhs = rhs
+        data.quad_coeffs = quad_coeffs
+        data.affine_coeffs = affine_coeffs
+        data.quad_1_vars = quad_1_vars
+        data.quad_2_vars = quad_2_vars
+        data.affine_vars = affine_vars
+        data.constant = constant
+        return data
+    end
+end
+
+#=
+
+ mutable struct: _ConInfo
+ Brief: A data type for describing model constraints that are not
+    in the NLPBlock.
+
+Param type Used to determin what kind of constraint function is being represented
+Param data Used to attach a data structure for holding constraint data 
+Param added used to indicate if the constraint has been added to the model 
+Param icon  Holds the index of the constraint in the LINDO model
+
+=#
+mutable struct _ConInfo
+
+    type::_ConType
+    data::Union{_ScalarAffineConData, _ScalarQuadConData}
+    added::Bool
+    icon::Int
+    #=
+
+     Function: _ConInfo
+
+    =#
+    function _ConInfo(type::_ConType,data::Union{_ScalarAffineConData, _ScalarQuadConData})
+        
+        info = new()
+        info.type = type
+        info.data = data
+        info.added = false
+        return info
+
+    end
+
+end
 
 
 #=
@@ -360,13 +440,13 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
         typeof(_HASH),
         typeof(_INVERSE_HASH),
     }
-    ScalarAffineCon_info::Dict{MOI.ConstraintIndex,_ScalarAffineConInfo}
-    n_unloaded_LP_cons::Int64
+    con_info::Dict{MOI.ConstraintIndex,_ConInfo}
+    n_unloaded_cons::Int64
     #enable_interrupts::Bool
     silent::Bool
     objective_type::_ObjectiveType
     objective_function::_SUPPORTED_OBJECTIVE_FUNCTION
-    objective::_OBJInfo
+    objective::_ObjInfo
     #=
 
      Function: Optimizer
@@ -415,9 +495,9 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
             _HASH,
             _INVERSE_HASH,
         )
-        model.ScalarAffineCon_info = Dict{MOI.ConstraintIndex,_ScalarAffineConInfo}()
-        model.n_unloaded_LP_cons = 0
-        model.objective = _OBJInfo()
+        model.con_info = Dict{MOI.ConstraintIndex,_ConInfo}()
+        model.n_unloaded_cons = 0
+        model.objective = _ObjInfo()
 
         model.nlp_data = MOI.NLPBlockData([], _EmptyNLPEvaluator(), false)
         finalizer(model) do m
@@ -601,8 +681,8 @@ end
 function _parse(model::Optimizer,load::Bool)
     
     nlp_con_count = length(model.nlp_data.constraint_bounds)
-    lp_con_count  = model.n_unloaded_LP_cons
-    con_count = nlp_con_count + lp_con_count
+    lp_qp_con_count  = model.n_unloaded_cons
+    con_count = nlp_con_count + lp_qp_con_count
     
     # initilze list with some memory
     code = Vector{Cint}(undef, 200)
@@ -636,16 +716,16 @@ function _parse(model::Optimizer,load::Bool)
             # build an instruction list
             N = length(model.objective.data.vars)*4 -1 
             instructionList = Vector{Any}(undef,N)
-            instructionList = linear_obj_to_post(instructionList, model.objective.data.vars, 
+            instructionList = linear_to_post(instructionList, model.objective.data.vars, 
                                                model.objective.data.coeffs)
         else
             # ScalarQuadraticFunction  _SCALAR_QUADRATIC
-            N = length(model.objective.data.quad_coeffs) * 6 + 3
+            N = length(model.objective.data.quad_coeffs) * 6 + 2
             if (length(model.objective.data.affine_coeffs) > 0)
                 N += length(model.objective.data.affine_coeffs) * 4 + 1
             end
             instructionList = Vector{Any}(undef,N)
-            instructionList = quad_obj_to_post(instructionList, 
+            instructionList = quad_to_post(instructionList, 
                                               model.objective.data.quad_coeffs,
                                               model.objective.data.affine_coeffs,
                                               model.objective.data.quad_1_vars,
@@ -677,21 +757,45 @@ function _parse(model::Optimizer,load::Bool)
 
     # Add LP Constraints to argument lists
     # starting from the first to last unloaded constraint
-    for (key,conInfo) in model.ScalarAffineCon_info 
-        if conInfo.added == false
-            N = length(conInfo.vars)*4 + 1 
+    for (key,info) in model.con_info 
+         
+        if info.added == false && info.type == _SCALAR_AFFINE_CON
+            N = length(info.data.vars)*4 + 1 
             instructionList = Vector{Any}(undef,N)
-            instructionList = linear_con_to_post(instructionList, conInfo.vars , conInfo.coeffs, conInfo.rhs)
-            ctype[icon] = conInfo.ctype
+            is_obj=false
+            instructionList = linear_to_post(instructionList, info.data.vars , info.data.coeffs, is_obj, info.data.rhs)
+            ctype[icon] = info.data.ctype
             cons_beg[icon] = ikod - 1
             code, numval, ikod, ival = _add_to_expr_list(model,code, numval, ikod, ival, instructionList)
             cons_length[icon] = ikod - (cons_beg[icon] + 1)
-            conInfo.icon = icon
+            info.icon = icon
             icon += 1
-            conInfo.added = true
-            model.n_unloaded_LP_cons -= 1
+            info.added = true
+            model.n_unloaded_cons -= 1
+        elseif info.added == false && info.type == _SCALAR_QUAD_CON
+            
+            N = length(info.data.quad_coeffs) * 6 + 3
+            if (length(info.data.affine_coeffs) > 0)
+                N += length(info.data.affine_coeffs) * 4 
+            end
+            instructionList = Vector{Any}(undef,N)
+            is_obj=false
+            instructionList = quad_to_post(instructionList, info.data.quad_coeffs,info.data.affine_coeffs,
+                                           info.data.quad_1_vars,info.data.quad_2_vars,info.data.affine_vars,
+                                           info.data.constant,is_obj,info.data.rhs)
+
+            ctype[icon] = info.data.ctype
+            cons_beg[icon] = ikod - 1
+            code, numval, ikod, ival = _add_to_expr_list(model,code, numval, ikod, ival, instructionList)
+            cons_length[icon] = ikod - (cons_beg[icon] + 1)
+            info.icon = icon
+            icon += 1
+            info.added = true
+            model.n_unloaded_cons -= 1
+        else
+            nothing
         end
-        
+
     end
 
     for (key, info) in model.variable_info
@@ -701,7 +805,7 @@ function _parse(model::Optimizer,load::Bool)
         vtype[info.column] = info.vtype
     end
 
-    ncons = nlp_con_count - model.load_index + lp_con_count
+    ncons = nlp_con_count - model.load_index + lp_qp_con_count
     model.load_index = length(model.nlp_data.constraint_bounds)
     nvars = model.next_column - 1
     lsize = ikod - 1
@@ -846,14 +950,14 @@ end
 =#
 function MOI.delete(
     model::Optimizer,
-    index::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},<:_CONS_}
+    index::MOI.ConstraintIndex{<:_CON_F_TYPE,<:_CONS_}
 )
 
     if model.nlp_count > 0 throw(MOI.DeleteNotAllowed(index)) end
 
 
 
-    conInfo=model.ScalarAffineCon_info[index]
+    conInfo=model.con_info[index]
     nCons = 1
     deleted_icon = conInfo.icon
     paiCons = [deleted_icon - 1]
@@ -861,7 +965,7 @@ function MOI.delete(
     _check_ret(model, ret)
 
     # fix icod of each constraint ...
-    for (key,conInfo) in model.ScalarAffineCon_info
+    for (key,conInfo) in model.con_info
         if conInfo.icon > deleted_icon
             conInfo.icon -= 1
         end
@@ -1003,8 +1107,8 @@ end
 function _getDualSolution(model::Optimizer)
     # number of constraints in the model comes from 
     # length of nlp block constraints 
-    # length of ScalarAffineCon_info 
-    nCons = length(model.nlp_data.constraint_bounds) + length(model.ScalarAffineCon_info)
+    # length of con_info 
+    nCons = length(model.nlp_data.constraint_bounds) + length(model.con_info)
     model.dual_values = Vector{Cdouble}(undef, nCons)
     if model.use_LSsolveMIP == true
         nErrpsol = LSgetMIPDualSolution(model.ptr, model.dual_values)
@@ -1044,13 +1148,13 @@ end
 =#
 function MOI.get(model::Optimizer,
                  attr::MOI.ConstraintDual,
-                 index::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},<:_CONS_},)
+                 index::MOI.ConstraintIndex{<:_CON_F_TYPE,<:_CONS_},)
 
     if model.dual_retrived == false
         nErrpsol = _getDualSolution(model::Optimizer)
     end
     # get the constraints icon
-    conInfo=model.ScalarAffineCon_info[index]
+    conInfo=model.con_info[index]
     dual_value = (model.dual_values)[conInfo.icon]
     return dual_value
 end
@@ -1091,8 +1195,8 @@ end
 function MOI.get(model::Optimizer, attr::Slack_or_Surplus)
     # number of constraints in the a model is Curently
     # length of nlp block constraints 
-    # length of ScalarAffineCon_info 
-    nCons = length(model.nlp_data.constraint_bounds) + length(model.ScalarAffineCon_info)
+    # length of con_info 
+    nCons = length(model.nlp_data.constraint_bounds) + length(model.con_info)
     slack = Vector{Cdouble}(undef, nCons)
     if model.use_LSsolveMIP == true
         ret = LSgetMIPSlacks(model.ptr, slack)
@@ -1177,8 +1281,9 @@ function MOI.supports_constraint( ::Optimizer, ::Type{MOI.VariableIndex},
     return true
 end
 
-function MOI.supports_constraint( ::Optimizer, ::Type{MOI.ScalarAffineFunction{Float64}},
-    ::Type{F}) where { F<:_CONS_ }
+function MOI.supports_constraint( ::Optimizer,
+     ::Type{<:_CON_F_TYPE},
+     ::Type{<:_CONS_})
     return true
 end
 
