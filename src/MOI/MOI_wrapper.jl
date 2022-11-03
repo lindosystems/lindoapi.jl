@@ -471,7 +471,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
         model.objective_type = _SCALAR_AFFINE
         model.objective_function = nothing
         model.loaded = false
-        model.uDict = _uDict = Dict("Prefix" => "Lindo API", "Postfix" => "...",)
+        model.uDict = Dict("Prefix" => "Lindo API", "Postfix" => "...",)
         model.usr_set_logfunc = false
         model.usr_set_cbfunc = false
         model.usr_set_MIPcbfunc = false
