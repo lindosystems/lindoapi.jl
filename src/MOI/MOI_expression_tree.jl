@@ -120,45 +120,20 @@ end
 
 #=
 
- Function linear_con_to_post:
- Breif: build a post order instructionList for a constraint a'x - b
-
- Param instructionList: An empty list to hold the post-order traversal.
- Param vars: An array of MOI.VariableIndex "x"
- Param coeffs: An array of floats "a"
- Param rhs: A float "b"
-
- Return instructionList:
-
-=#
-function linear_con_to_post(instructionList, vars, coeffs, rhs)
-    pos = 1
-    for i in eachindex(vars)
-        instructionList[pos] = coeffs[i] ; pos += 1
-        instructionList[pos] = vars[i]   ; pos += 1
-        instructionList[pos] = :*        ; pos += 1
-        if i >= 2 
-            instructionList[pos] = :+ ; pos += 1
-        end
-    end
-    instructionList[pos] = rhs ; pos += 1
-    instructionList[pos] = :- 
-    return instructionList
-end
-
-#=
-
- Function linear_obj_to_post:
- Breif: build a post order instructionList for an objective a'x
+ Function linear_to_post:
+ Breif: build a post order instructionList for a linear funciton a'x
+    can be constraint or objective. 
 
  Param instructionList: An empty list to hold the post-order traversal.
  Param vars: An array of MOI.VariableIndex "x"
  Param coeffs: An array of floats "a"
 
+
+
  Return instructionList:
 
 =#
-function linear_obj_to_post(instructionList, vars, coeffs )
+function linear_to_post(instructionList, vars, coeffs, is_obj=true, rhs=0.0 )
     pos = 1
     for i in eachindex(vars)
         instructionList[pos] = coeffs[i] ; pos += 1
@@ -169,6 +144,11 @@ function linear_obj_to_post(instructionList, vars, coeffs )
         end
     end
 
+    if is_obj == false
+        instructionList[pos] = rhs ; pos += 1
+        instructionList[pos] = :- 
+    end
+
     return instructionList
 end
 
@@ -176,7 +156,7 @@ end
 
  Function var_obj_to_post:
  Breif: build a post order instructionList for an objective x
-
+     
  Param instructionList: An empty list to hold the post-order traversal.
  Param vars: A MOI.VariableIndex "x"
 
@@ -191,18 +171,24 @@ end
 #=
 
  Function quad_obj_post:
- Breif: build a post order instructionList for an objective 1/2 x'Qx + a'x + b 
-    
+ Breif: build a post order instructionList for a function 1/2 x'Qx + a'x + b 
+    can be constraint or objective.
 
  Param instructionList: An empty list to hold the post-order traversal.
- Param all otehr inputs are from _ScalarQuadraticOBJData
-
+ Paran quad_coeffs    A vector of coefficents in the quadratic part "Q"
+ Paran affine_coeffs  A vector of coefficents in the affine part "a"
+ Paran quad_1_vars    The first vector of variables in the quadratic part
+ Paran quad_2_vars    The second vector of variables in the quadratic part
+ Paran affine_vars    A vector of variable in the affine part
+ Paran constant       A scalar constant `b`
+ Paran is_obj         True if the objective function is being turned into an instruction list
+ Paran rhs            Required for constraints, and is the right hand side of constraint 
  Return instructionList:
 
 =#
-function quad_obj_to_post(instructionList, quad_coeffs,affine_coeffs,
+function quad_to_post(instructionList, quad_coeffs,affine_coeffs,
                                            quad_1_vars,quad_2_vars,
-                                           affine_vars,constant)
+                                           affine_vars, constant, is_obj=true, rhs=0.0)
     pos = 1
     instructionList[pos] = 0.5 ; pos += 1
     for i in eachindex(quad_coeffs)
@@ -215,11 +201,11 @@ function quad_obj_to_post(instructionList, quad_coeffs,affine_coeffs,
             instructionList[pos] = :+ ; pos += 1
         end
     end
-    instructionList[pos] = constant ; pos += 1
-    instructionList[pos] = :+ ; pos += 1
+
     instructionList[pos] = :* ; pos += 1
+
+    
     if(length(affine_coeffs) > 0)
-        instructionList[pos] = :+ ; pos += 1
         for i in eachindex(affine_coeffs)
             instructionList[pos] = affine_coeffs[i] ; pos += 1
             instructionList[pos] = affine_vars[i]   ; pos += 1
@@ -228,7 +214,19 @@ function quad_obj_to_post(instructionList, quad_coeffs,affine_coeffs,
         end
     end
     
+    if is_obj 
+        instructionList[pos] = constant ; pos += 1
+        instructionList[pos] = :+ ; pos += 1
+    else
+        instructionList[pos] = constant - rhs ; pos += 1
+        instructionList[pos] = :+
+    end
+
     return instructionList
 end
+
+
+
+
 
 
