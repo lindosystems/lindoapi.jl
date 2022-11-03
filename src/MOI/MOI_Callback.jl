@@ -120,9 +120,9 @@ function _setSolverCallback(model::Optimizer)
     if model.usr_set_logfunc == false
         MOI.set(model, Lindoapi.LogFunction(model.uDict), logFunc)
     end
-    if model.use_Global == true && model.usr_set_GOPcbfunc == false
+    if model.use_Global == true && model.usr_set_GOPcbfunc == false && model.usr_set_cbfunc == false
         MOI.set(model, Lindoapi.GOPCallbackFunction(model.uDict), cbGOPFunc)
-    elseif model.use_LSsolveMIP == true && model.usr_set_MIPcbfunc == false
+    elseif model.use_LSsolveMIP == true && model.usr_set_MIPcbfunc == false && model.usr_set_cbfunc == false
         MOI.set(model, Lindoapi.MIPCallbackFunction(model.uDict), cbMIPFunc)
     else
         nothing
