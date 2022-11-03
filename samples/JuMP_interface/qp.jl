@@ -56,55 +56,50 @@ Q = [ 1.00 0.64 0.27 0.
 
 r = [0.300,0.200,-0.400,0.200]
 
-K = 0.2
+K = 0.5
 
-METHOD_BARRIER = Int32(3)
+
 
 model = Model(Lindoapi.Optimizer)
 
-JuMP.set_optimizer_attribute(model,
-         "solverMethod",
-         METHOD_BARRIER)
+
 
 @variable(model, w[1:num_assets] >= 0)
 
-@NLobjective(model, Max, sum(w[i]*r[i] for i in 1:num_assets))
+@objective(model, Max, sum(w[i]*r[i] for i in 1:num_assets))
 
-portfolio_con = @NLconstraint(model, sum(w[i] for i in 1:num_assets) == 1)
-risk_con      = @NLconstraint(model, 0.5 * sum(w[i] * sum(Q[i,j] * w[j] for j in 1:num_assets)
-                                        for i in 1:num_assets) <= K)
+portfolio_con = @constraint(model, sum(w[i] for i in 1:num_assets) == 1)
+risk_con      = @constraint(model, w' * Q * w <= K)
 
 optimize!(model)
 
-if termination_status(model) == MOI.OPTIMAL
 
-    obj_val     = objective_value(model)
-    w_star      = value.(all_variables(model))
-    reducedCost = reduced_cost.(all_variables(model))
-    variance    = w_star'Q*w_star
 
-    portfolio_con_dual = dual(portfolio_con)
-    risk_con_dual      = dual(risk_con)
-    portfolio_con_slack, risk_con_slack = get_optimizer_attribute(model,
-                                            Lindoapi.Slack_or_Surplus())
+obj_val     = objective_value(model)
+w_star      = value.(all_variables(model))
+reducedCost = reduced_cost.(all_variables(model))
+variance    = w_star'Q*w_star
 
-    @printf("Expected Return: %.5f \n", obj_val)
-    @printf("Variance       : %.5f \n", variance)
-    println()
-    println("Variable      Value        Reduced Cost")
-    println("========================================")
-    for i in 1:num_assets
-    @printf("w[%d] %15.3f %15.3f \n", i, w_star[i], reducedCost[i])
-    end
+portfolio_con_dual = dual(portfolio_con)
+risk_con_dual      = dual(risk_con)
+portfolio_con_slack, risk_con_slack = get_optimizer_attribute(model,
+                                        Lindoapi.Slack_or_Surplus())
 
-    println()
-    println("    Row           Slack or Surplus   Dual Price")
-    println("===============================================")
-    @printf("portfolio_con %15.3f %15.3f \n",
-            portfolio_con_slack, portfolio_con_dual)
-    @printf("risk_con      %15.3f %15.3f \n",
-            risk_con_slack, risk_con_dual)
-
-else
-    println("Optimal solution was not found -- status: ", raw_status(model))
+@printf("Expected Return: %.5f \n", obj_val)
+@printf("Variance       : %.5f \n", variance)
+println()
+println("Variable      Value        Reduced Cost")
+println("========================================")
+for i in 1:num_assets
+@printf("w[%d] %15.3f %15.3f \n", i, w_star[i], reducedCost[i])
 end
+
+println()
+println("    Row           Slack or Surplus   Dual Price")
+println("===============================================")
+@printf("portfolio_con %15.3f %15.3f \n",
+        portfolio_con_slack, portfolio_con_dual)
+@printf("risk_con      %15.3f %15.3f \n",
+        risk_con_slack, risk_con_dual)
+
+ 
