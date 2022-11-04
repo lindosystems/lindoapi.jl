@@ -284,6 +284,7 @@ mutable struct _VariableInfo
     lower_bound_bounded::Float64
     upper_bound_bounded::Float64
     name::String
+    valid::Bool
     #=
 
      Function: _VariableInfo
@@ -303,6 +304,7 @@ mutable struct _VariableInfo
         variable_info.lower_bound_bounded = -typemax(Float64)
         variable_info.upper_bound_bounded = typemax(Float64)
         variable_info.name = ""
+        variable_info.valid = true
         return variable_info
     end
 end
@@ -642,7 +644,7 @@ function _add_to_expr_list(model::Optimizer,code, numval, ikod, ival, instructio
         elseif typeof(instructionList[i]) == MathOptInterface.VariableIndex
             info = _info(model, instructionList[i])
             code[ikod] = EP_PUSH_VAR;          ikod += 1;
-            code[ikod] = info.index.value - 1; ikod += 1;
+            code[ikod] = info.column - 1; ikod += 1;
         else
             code[ikod] = Sym_To_EP[instructionList[i]]; ikod += 1;
         end
@@ -799,10 +801,12 @@ function _parse(model::Optimizer,load::Bool)
     end
 
     for (key, info) in model.variable_info
-        lwrbnd[info.column] = info.lower_bound_bounded
-        uprbnd[info.column] =info.upper_bound_bounded
-        varval[info.column] = 1.0
-        vtype[info.column] = info.vtype
+        if(info.valid == true)
+            lwrbnd[info.column] = info.lower_bound_bounded
+            uprbnd[info.column] =info.upper_bound_bounded
+            varval[info.column] = 1.0
+            vtype[info.column] = info.vtype
+        end
     end
 
     ncons = nlp_con_count - model.load_index + lp_qp_con_count
@@ -940,7 +944,7 @@ end
 #=
 
  Function MOI.delete in MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},<:_CONS_}
- Brief: Delets a single ScalarAffine constraint from a model 
+ Brief: Deletes a single ScalarAffine constraint from a model 
  
 
 
@@ -954,8 +958,6 @@ function MOI.delete(
 )
 
     if model.nlp_count > 0 throw(MOI.DeleteNotAllowed(index)) end
-
-
 
     conInfo=model.con_info[index]
     nCons = 1
@@ -975,6 +977,47 @@ function MOI.delete(
 end
 
 
+#=
+
+ Function MOI.delete in MOI.VariableIndex
+ Brief: Deletes a single variable from 
+ Param model:
+ index: MOI.VariableIndex 
+=#
+function MOI.delete(
+    model::Optimizer,
+    index::MOI.VariableIndex
+)
+
+    if model.nlp_count > 0 throw(MOI.DeleteNotAllowed(index)) end
+
+    # get the variable info
+    info = _info(model, index)
+    
+    nVars = 1
+    exiting_index = info.column - 1
+    paiVars = [exiting_index]
+
+    ret = LSdeleteVariables(model.ptr, nVars, paiVars)
+    _check_ret(model, ret)
+
+    # print("return from deleting -> ", ret)
+    # print("exiting_index -> ", exiting_index)
+
+    info.valid = false
+    model.next_column -= 1
+
+    # Loop over the remaining variable
+    for (key, info) in model.variable_info
+        
+        if info.column > exiting_index
+            info.column -= 1
+        end
+
+    end
+
+    return
+end
 
 #=
 LSgetMIPPrimalSolution( pModel, primal)
