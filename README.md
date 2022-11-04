@@ -283,54 +283,85 @@ The variables in arrays can be accessed like typical julia array use `x[i]` to a
 
 ### Constraints
 
-To attach a constraint to a model, use the macro`@NLconstraint`
+There are two macros that can be used to attach constraints to a model `@constraint` and `@NLconstraint`. The first macro `@constraint` is used to add affine and quadratic constraints. The second `@NLconstraint` can add nonlinear constraints.
 
+`@constraint(model, ref, expr)`
 `@NLconstraint(model, ref, expr)`
 
-`ref`: A constraint name for referncing. This is an optional argument and is equivalent to `ref = @NLconstraint(model, expr)`.
+`ref`: A constraint name for referencing. This is an optional argument and is equivalent to `ref = @NLconstraint(model, expr)`.
 
 `expr`:  Constraint expression. Lindoapi.jl supports the constraints `<=`, `>=`  and `==`.
-
+ 
+ In the quadratic constraint bellow the `ref` is `con1` and the `expr` is `x[1]*x[2] <=  6`:
 ``` julia
-@NLconstraint(model, con1, x[1]*x[2] <=  6)
+@constraint(model, con1, x[1]*x[2] <=  6)
+```
+ In the nonlinear constraint bellow the `ref` is `con2` and the `expr` is `cos(x[1]*x[2]) >= 0`:
+``` julia
+@NLconstraint(model, con1, cos(x[1]*x[2]) >= 0)
 ```
 
-To sum over or take the product of variables JuMP supports `sum` and `prod` operations.
+Constraint expressions do not have to be written out term by term but can be simplified with matrix vector multiplication, dot products, summations and products. This flexibility makes JuMP convenient for expressing complex optimization problems. 
+
+For the bellow examples 
+* $A \in \mathbb{R}^{n,m}$
+* $Q \in \mathcal{S}^n$ where $\mathcal{S}^n$ the set of n be n symmetric.
+* $a \in \mathbb{R}^n$
+* $x \in \mathbf{F}^n$ where $\mathbf{F}$ is real, integer, or binary. 
+*  $b \in \mathbb{R}^m$
+*  $c  \in \mathbb{R}$
+To represent the constraint $Ax \leq b$:
 ```julia
-@NLconstraint(model, sum(x[i] for i in 1:n) == 1)
-```
+@constraint(model, A*x .<= b)
+``` 
 
-To make an array of `n` constraints use `[i = 1:n]` before the constraint expression. The variable `i` can be used to index over variables as well.
+To represent the constraint $a^Tx$ :
 ```julia
-@NLconstraint(
-	model,
-	con2[i = 1:(n - 1)],
-	θ[i] - θ[i+1] <= 0
-)
-```
+@constraint(model,  dot(x,a) <= c)
+``` 
 
-**Note:**  `@NLconstraint` does not support matrix and vector operations, and the `sum` function will have to be used instead. Here is an example of `w'Σ*w` using a double `sum`.
-
+For quadratic constraints $\frac{1}{2}x^TQx + a^Tx <= c$:
 ```julia
-@NLconstraint(
-	model,
-	sum(w[i] * sum(Σ[i,j] * w[j]
-		for j in 1:n) for i in 1:n)  <= K
-)
+@constraint(model,  x'Q*x + dot(x,a) <= c)
+``` 
+When summations are more convenient to express a constraint the `sum` function can be used.
+
+$\sum^n_{i=1,i\ne j} x_{i,j} = 1$ for $j = k$ 
+```julia
+@constraint(model, flow_into_k, sum(x[i,j] for i in 1:n if i != k) == 1)
 ```
+
+Instead of writing the above constraint for $j = 1, \dots, n$ n times or defining them with a for loop JuMP has what is called constraint containers for generating an array of constraints.  To create a constraint container, add a range `[k = 1:n]` to the constraint name this will make n copies of a constraint with `k` as an iterator. 
+
+$\sum^n_{i=1,i\ne j} x_{i,j} = 1$ for $i = 1, \dots, n$ 
+```julia
+@constraint(model,flow_into[k = 1:n],
+			sum(x[i,j] for i in 1:n if i != k) == 1)
+```
+
+**Note:** The `@NLconstraint` macro does not support any matrix vector multiplication or dot product. The `sum` function however works just like the @constraint and constraint constrainers are also available.
 
 ###  Objectives
 
-To attach an objective to a model, use the macro`@NLobjective`
+To attach an objective to a model, use the macros `@objective` and `@NLobjective` objective can be used.
+
 
 `@NLobjective(model, sense, expr)`
 
 `sense`: Lindoapi.jl  supports `Min` and `Max`
 
-`expr`: The objective expression is expressed just as the constraints are, and supports `sum` and `prod` as well.
+`expr`: The objective expression is expressed just as the constraints are such as for both types of objective functions the `sum` and `prod` functions are both supported. For `@objective` matrix vector multiplication, and dot products are supported.
 
 ```julia
-NLobjective(
+@objective(
+	model,
+	Min,
+	w'* Q * w
+)
+```
+
+```julia
+@NLobjective(
 	model,
 	Min,
 	sum(x[i,j]*exp(f[i,j]*(x[i,j]-g[i,j]))
@@ -338,7 +369,7 @@ NLobjective(
 )
 ```
 
-**Note:** JuMP currently only supports one objective function per model with `@NLobjective`.
+**Note:** JuMP currently only supports one objective function per model with `@objective` or `@NLobjective`.
 ### Setting Model Attributes
 
 Model attributes can be set using the overloaded function `set_optimizer_attribute()`
@@ -602,4 +633,25 @@ z ≥ 0.0
 (x ^ 2.0 + z ^ 2.0) - 4.0 = 0
 ```
 
-**Note:** JuMP does not support deleting @NLconstraints or @NLobjectives currently and the model will have to be rebuilt if constraints or objectives need to be edited/deleted. After a model is ran @NLconstraints can be added to an existing model and the model can be rerun.
+### Editing and Rerunning the Model
+
+After `optimize!` has been called the model can be edited and then reoptimized with the changes. The four edits that can be done to a model are adding constraints, adding variables, removing constraints, and removing variables. Any type of model can add new constraints, and variables. However, nonlinear models cannot remove constraints, or variable.
+
+Adding constraints and variables to a model can be done the same as they are added to the model before calling `optimize!` using `@constraint,` `@NLconstraint`, `@variable`, and `@variables`.
+
+Removing constraints and variables can be done with `delete()` function`delete(model, constraintRef)` .
+
+`constraintRef`:  The `ref` value set when the @constraint was created.
+Below is an example of deleting the constraint with `constraintRef` `con`:
+```julia
+@constraint(model, con, 4*x1 +  5*x2 +  8*x3 ==  40)
+delete(model, con)
+```
+
+`variableRef`:  the variable name created when the variable was created with @varaible or @variables.
+Below is an example of deleting the 3rd variable created with a`@variable` :
+```julia 
+@variable(model, x[1:4], Bin)
+delete(model, x[3])
+```
+
