@@ -4,25 +4,23 @@
 
 ## Introduction
 
-The Julia package Lindoapi.jl offers two ways to interface with the Lindo API. 
-The first way to interface with the API is through the soft wrapper that allows users to directly call the functions implemented in the Lindo API. The second way to interface with the API is with the JuMP.jl package. Both ways of interfacing have their strengths calling Lindo API functions directly using the soft wrapper is more efficient with computation speed and memory use while using the JuMP interface allows for much more natural expression of a model.
+The Julia package Lindoapi.jl offers two ways to interface with the Lindo API.  
+The first way to interface with the API is through the soft wrapper that allows Julia users to directly call the functions implemented in the Lindo API. The second way to interface with the API is with the JuMP.jl package. Both ways of interfacing have their strengths. Calling LINDO API functions directly using the soft wrapper is more efficient with computation speed and memory use while using the JuMP interface allows for much more natural expression of a model.
 
-
-
-## Downloading Lindo API
+## Downloading LINDO API
 
 Before adding the Lindoapi package please [download](https://www.lindo.com/index.php/ls-downloads/try-lindo-api) the API
-See the [manual](https://www.lindo.com/downloads/PDF/API.pdf) for operating system specific downloading instructions and keep as a reference for the available API functions.
+See the [manual](https://www.lindo.com/downloads/PDF/API.pdf) for operating system specific downloading instructions and keep as a reference for the available LINDO API functions.
 
 ## Installing Lindoapi.jl
 
-The Julia library needs to know where the Lindo API is stored. To do so create an environment variable named. ```LINDOAPI_HOME```. 
+The Julia library needs to know where the LINDO API is stored. To do so create an environment variable named. ```LINDOAPI_HOME```. 
 ### Using Windows
 On the command line
 ```dos
 > set LINDOAPI_HOME="c:/lindoapi"
 ```
-Or in julia
+Or in Julia
 ```julia
 ENV["LINDOAPI_HOME"] = "c:/lindoapi"
 ```
@@ -42,8 +40,8 @@ To add the package in Julia
 using Pkg
 Pkg.add(url="https://github.com/lindosystems/lindoapi.jl")
 ```
-# Using the soft wrapper
-The [manual](https://www.lindo.com/downloads/PDF/API.pdf) has documentation on every function available, and plenty of samples all of which are straight forward to convert to Julia. For a quick start guide and to see how Julia works with the API this section will go through the steps that are important to getting started with the API.
+# Using the Soft Wrapper
+The [manual](https://www.lindo.com/downloads/PDF/API.pdf) has documentation on every function available, and plenty of samples all of which are straight forward to convert to Julia. For a quick start guide and to see how Julia works with the LINDO API this section will go through the steps that are important to getting started with the LINDO API.
 
 ### Table of Contents
 1. Creating Modeling Environment and Model
@@ -60,7 +58,7 @@ This section goes over the creation of the pointers to the environment and a mod
 
 This function loads users license key into an array. This function comes first since the API key is needed to create API environment for models.
 
-``pszFname``: A string that contains the full path to your Lindo API license key.
+``pszFname``: A string that contains the full path to your LINDO API license key.
 
 
 ``pachLicense``: An empty vector of type unsinged Int 8 (UInt8)
@@ -118,7 +116,7 @@ Lindoapi.check_error(pEnv,pnErrorCode[1])
 
 ``pEnv``:           A pointer to an environment created by LScreateEnv.
 
-``pnErrorCode``:    An array of Int32 initialized with one element for `LScreateEnv` to store the error code when `pnErrorCode[1] == 0` the function is successful.
+``pnErrorCode``:    An array of Int32 initialized with one element for `LScreateEnv` to store the error code. When `pnErrorCode[1] == 0` the function is successful.
 
 ``Returns`` : A pointer to a newly created model.
 
@@ -127,7 +125,7 @@ pModel = Lindoapi.LScreateModel(pEnv, pnErrorCode)
 Lindoapi.check_error(pEnv,pnErrorCode[1])
 ```
 ### Loading Data
-Once an environment has been created and a model has been attached the data can be added to the model. This can be done in a variety of ways depending on what kind of data is being added. See the attached examples to get an idea of how different data types are loaded into a model. Also see Chapter 1 of the [manual](https://www.lindo.com/downloads/PDF/API.pdf) to learn more about array and matrix representation used by the Lindo API.
+Once an environment has been created and a model has been attached, data can be added to the model. This can be done in a variety of ways depending on what kind of data are being added. See the attached examples to get an idea of how different data types are loaded into a model. Also see Chapter 1 of the [LINDO API manual](https://www.lindo.com/downloads/PDF/API.pdf) to learn more about array and matrix representation used by the LINDO API.
 
 **Examples provided for:**
 * `` LSloadNLPData``
@@ -195,10 +193,10 @@ Lindoapi.check_error(pEnv, errorcode)
 * ``LSgetMIPPrimalSolution(pModel, padPrimal)``
 * ``LSgetMIPDualSolution(pModel, padDual)``
 
-The arguments for these functions are similar use the ``MIP`` functions when the model has any integer variables.
+The arguments for these functions are similar to those used by the ``MIP`` functions when the model has any integer variables.
 
 ``pmodel``:  A pointer to model that is being queried.
-``padPrimal``:  A vector of Cdouble that is the length of the number of variables in the model the function will replace the values in the list with the primal values.
+``padPrimal``:  A vector of Cdouble that is the length of the number of variables in the model. The function will replace the values in the list with the primal values.
 ``padDual``: A vector of Cdouble that is the length of the number of constraints in the model.
 
 ```julia
@@ -209,7 +207,7 @@ Lindoapi.check_error(pEnv, errorcode)
 
 ### Freeing Model and Enviroment 
 
-Lindo API is allocating memory that Julia does not manage. It is important to free this memory before ending the program. First free the memory allocated to each model attached to the environment then free the environment using the two functions described below.
+LINDO API allocates memory that Julia does not manage. It is important to free this memory before ending the program. First free the memory allocated to each model attached to the environment then free the environment using the two functions described below.
 * ``LSdeleteModel(pModel)``
 * ``LSdeleteEnv(pEnv)``
 
@@ -228,7 +226,7 @@ Lindoapi.check_error(pEnv, errorcode)
 
 # Using the JuMP Interface
 
-[JuMP](https://jump.dev/JuMP.jl/stable/) is a modeling language embedded in the Julia programming language. This section will cover the functions from JuMP that Lindoapi.jl supports, and how to use them. Samples are also provided in the folder `JuMP_interface` for more concrete examples.
+[JuMP](https://jump.dev/JuMP.jl/stable/) is a modeling language embedded in the Julia programming language. This section covers the functions from JuMP that Lindoapi.jl supports, and how to use them. Samples are also provided in the folder `JuMP_interface` for more concrete examples.
 
 ### Table of Contents
 1. Creating a Model
@@ -238,6 +236,7 @@ Lindoapi.check_error(pEnv, errorcode)
 5. Setting Model Attributes
 6. Calling the Optimizer
 7. Querying the Model
+8. Editing and Rerunning the Model
 
 ### Creating a Model
 
@@ -247,7 +246,7 @@ Using the JuMP function `Model` will create an empty model.
 model = Model(Lindoapi.Optimizer)
 ```
 
-`Lindoapi.Optimizer` sets the optimizer to the Lindo API.
+`Lindoapi.Optimizer` sets the optimizer to the LINDO API.
 
 ### Making Variables
 
@@ -275,7 +274,7 @@ The Lindoapi.jl supports the JuMP macros `@variable` and `@variables` to attach 
 )
 ```
 
-`args`:  Supported `Bin` for binary and `Int` for integer variables. This argument can be used on any of the above examples.
+`args`:  Supports `Bin` for binary and `Int` for integer variables. This argument can be used on any of the above examples.
 
 * `@variable(model, z[1:n], Int)` Vector of `n` integer variables.
 
@@ -301,11 +300,11 @@ There are two macros that can be used to attach constraints to a model `@constra
 @NLconstraint(model, con1, cos(x[1]*x[2]) >= 0)
 ```
 
-Constraint expressions do not have to be written out term by term but can be simplified with matrix vector multiplication, dot products, summations and products. This flexibility makes JuMP convenient for expressing complex optimization problems. 
+Constraint expressions do not have to be written out term by term but can be simplified with matrix vector multiplication, dot products, summations, and products. This flexibility makes JuMP convenient for expressing complex optimization problems. 
 
 For the bellow examples 
 * $A \in \mathbb{R}^{n,m}$
-* $Q \in \mathcal{S}^n$ where $\mathcal{S}^n$ the set of n be n symmetric.
+* $Q \in \mathcal{S}^n$ where $\mathcal{S}^n$ is the set of n be n symmetric.
 * $a \in \mathbb{R}^n$
 * $x \in \mathbf{F}^n$ where $\mathbf{F}$ is real, integer, or binary. 
 *  $b \in \mathbb{R}^m$
@@ -331,7 +330,7 @@ $\sum^n_{i=1,i\ne j} x_{i,j} = 1$ for $j = k$
 @constraint(model, flow_into_k, sum(x[i,j] for i in 1:n if i != k) == 1)
 ```
 
-Instead of writing the above constraint for $j = 1, \dots, n$ n times or defining them with a for loop JuMP has what is called constraint containers for generating an array of constraints.  To create a constraint container, add a range `[k = 1:n]` to the constraint name this will make n copies of a constraint with `k` as an iterator. 
+Instead of writing the above constraint for $n$ times or defining them with a for loop JuMP has what is called constraint containers for generating an array of constraints.  To create a constraint container, add a range `[k = 1:n]` to the constraint name. This will make n copies of a constraint with `k` as an iterator. 
 
 $\sum^n_{i=1,i\ne j} x_{i,j} = 1$ for $i = 1, \dots, n$ 
 ```julia
@@ -339,18 +338,18 @@ $\sum^n_{i=1,i\ne j} x_{i,j} = 1$ for $i = 1, \dots, n$
 			sum(x[i,j] for i in 1:n if i != k) == 1)
 ```
 
-**Note:** The `@NLconstraint` macro does not support any matrix vector multiplication or dot product. The `sum` function however works just like the @constraint and constraint constrainers are also available.
+**Note:** The `@NLconstraint` macro does not support any matrix vector multiplication or dot product. The `sum` function however works just like the @constraint and constraint containers are also available.
 
 ###  Objectives
 
-To attach an objective to a model, use the macros `@objective` and `@NLobjective` objective can be used.
+To attach an objective to a model, use either the macros `@objective` or `@NLobjective`.
 
 
 `@NLobjective(model, sense, expr)`
 
 `sense`: Lindoapi.jl  supports `Min` and `Max`
 
-`expr`: The objective expression is expressed just as the constraints are such as for both types of objective functions the `sum` and `prod` functions are both supported. For `@objective` matrix vector multiplication, and dot products are supported.
+`expr`: The objective expression is expressed just as the constraints are. For both types of objectives, the `sum` and `prod` functions are supported. For `@objective` matrix vector multiplication, and dot products are supported.
 
 ```julia
 @objective(
@@ -381,7 +380,7 @@ Model attributes can be set using the overloaded function `set_optimizer_attribu
 
 `name`:  This argument can be any of the three listed below.
 * `"use_global"` toggles on/off the global solver.
-* `"silent"` toggles on/off the defualt callbacks
+* `"silent"` toggles on/off the default callbacks
 * `"solverMethod"` Sets the solver method to `LSoptimize()`.
 
 `value`:  Both `"use_global"` and `"silent"` only accept boolean arguments `true` or `false`.  The acceptable arguments for `"solverMethod"` are the following integers.
@@ -401,7 +400,7 @@ set_optimizer_attribute(
 ) 
  ```
  
- `name`:  A type LindoIntParam is unique to the Lindoapi, and is used hold a Lindo API integer parameter.  
+ `name`:  A type LindoIntParam is unique to the Lindoapi and is used to hold a Lindo API integer parameter.  
  
  `value`: The integer value of the parameter being set.
  
@@ -417,9 +416,9 @@ JuMP.set_optimizer_attribute(
 
  `set_optimizer_attribute(model::Model, name::LindoDouParam, value)`  
  
- `name`:  A type LindoDouParam is also unique to the Lindoapi, and is used hold a Lindo API double parameter.  
+ `name`:  A type LindoDouParam is also unique to the Lindoapi and is used hold a LINDO API double parameter.  
  
- `value`: The Float value of the parameter being set.
+ `value`: The Float (64 bit) value of the parameter being set.
  
  ```julia
 iparam = Lindoapi.LindoDouParam(Lindoapi.LS_DPARAM_IPM_BASIS_TOL_S)
@@ -431,11 +430,11 @@ JuMP.set_optimizer_attribute(
 )
 ```
 
-See [manual](https://www.lindo.com/downloads/PDF/API.pdf) **Available Parameters** section page 64 for a detailed list of all parameters. Any parameter starting with LS_IPARAM will work with LindoIntParam and any parameter starting with LS_DPARAM will work with LindoDouParam.
+See [manual](https://www.lindo.com/downloads/PDF/API.pdf) **Available Parameters** section on page 64 for a detailed list of all parameters. Any parameter starting with LS_IPARAM will work with LindoIntParam and any parameter starting with LS_DPARAM will work with LindoDouParam.
 
 ### Callback Functions
 
-Custom callback functions can be attached to the model. To attach one to the model use the overloaded `MOI.set()` function. 
+Custom callback functions can be attached to the model. To attach one to the model, use the overloaded `MOI.set()` function. 
 
 
 `MOI.set(model, ::AbstractCallback, cbfunc)`
@@ -449,7 +448,7 @@ Custom callback functions can be attached to the model. To attach one to the mod
 
 `uDict`: A dictionary of Data with keys of type String and data of any datatype. This is pass through data to access within the callback function.
 
-This sample  demonstrates the flexibility of uDict as passthrough data. Also the ease of writing a callback function, and initializing a `LogFunction` type. Finally how to set the callback with `MOI.set()`.  
+This sample demonstrates the flexibility of uDict as passthrough data, the ease of writing a callback function, initializing a LogFunction type, and how to set a callback with `MOI.set()`.  
 ```julia
 uDict = Dict(
 "Prefix"     => "Custom Callback",
@@ -499,7 +498,7 @@ function cbGOPFunc(modelPtr, uDict, objValue, pimalValues)
 end
 MOI.set(model, Lindoapi.GOPCallbackFunction(uDict), cbGOPFunc)
 ```
-The `uDict` is the only data that you need to provide. The rest will be passed to the functions by the Lindo API. See the [manual](https://www.lindo.com/downloads/PDF/API.pdf)  for more detail on how to use the Callbacks and the Lindo API functions such as `LSgetCallbackInfo()`. 
+The `uDict` is the only data you need provide. The rest will be passed to the functions by the LINDO API. See the [LINDO API manual](https://www.lindo.com/downloads/PDF/API.pdf) for details on how to use Callbacks and LINDO API functions such as `LSgetCallbackInfo()`. 
 
 **Note** By `using JuMP` the Mathoptinterface.jl libray is also imported and a constant `MOI = Mathoptinterface` is set. 
  
@@ -528,7 +527,7 @@ A list of supported functions supported to query the model and its variables
 * `solution_summary(model)`
 * `println(model)`
 
-`termination_status(model)`  A list of all possible returns and what Lindo termination status maps to them. 
+`termination_status(model)`  A list of all possible returns and what LINDO termination status maps to them. 
 
 * OPTIMAL
 	* LS_STATUS_OPTIMAL
@@ -554,7 +553,7 @@ A list of supported functions supported to query the model and its variables
 * OTHER_ERROR
 	* LS_STATUS_UNKNOWN
 
-`raw_status(model)` This function will return the Lindo termination status. For more detail on the Lindo termination status see Model Status  table on pages 22-23 in the [manual](https://www.lindo.com/downloads/PDF/API.pdf).
+`raw_status(model)` This function will return the LINDO termination status. For more detail on the LINDO termination status, see the Model Status table on pages 22-23 in the [LINDO API manual](https://www.lindo.com/downloads/PDF/API.pdf).
 
 ```julia 
 julia> JuMP.raw_status(model)
@@ -580,8 +579,8 @@ If the model is a MIP then `dual_status(model)` will return `NO_SOLUTION` unless
 
 `dual_objective_value(model)` Returns the dual objective value of the model. Only works for continuous models.
 
-`value(x)` This function takes single variable and returns it value.
- If `x` is an array or matrix use the `.` operator like so `value.(x)` to broadcast the function to each element.
+`value(x)` This function takes a single variable and returns its value.
+ If `x` is an array or matrix, use the `.` operator like so `value.(x)` to broadcast the function to each element.
 
 `reduced_cost(x)` Returns the reduced cost of a single variable `x`. If `x` is an array or matrix use the `.` operator like so `reduced_cost.(x)` to broadcast the function to each element.
 
@@ -605,7 +604,7 @@ return_con_slack    = slacks[2]
 
 ```julia
 julia> solution_summary(model)
-* Solver : Lindo
+* Solver : LINDO
 
 * Status
   Termination status : OPTIMAL
@@ -622,7 +621,7 @@ julia> solution_summary(model)
   Solve time (sec)   : 0.00000
 ```
 
-`println(model)` Prints out a mathematical representation of the model.
+`println(model)` Prints out a mathematical/ algebraic representation of the model.
 
 ```Julia
 julia> println(model)
@@ -635,14 +634,14 @@ z ≥ 0.0
 
 ### Editing and Rerunning the Model
 
-After `optimize!` has been called the model can be edited and then reoptimized with the changes. The four edits that can be done to a model are adding constraints, adding variables, removing constraints, and removing variables. Any type of model can add new constraints, and variables. However, nonlinear models cannot remove constraints, or variable.
+After `optimize!` has been called the model can be edited and then reoptimized with the changes. The four edits that can be done to a model are: adding constraints, adding variables, removing constraints, and removing variables. Any type of model can add new constraints, and variables. However, nonlinear models cannot remove constraints, or variables.
 
 Adding constraints and variables to a model can be done the same as they are added to the model before calling `optimize!` using `@constraint,` `@NLconstraint`, `@variable`, and `@variables`.
 
 Removing constraints and variables can be done with `delete()` function`delete(model, constraintRef)` .
 
 `constraintRef`:  The `ref` value set when the @constraint was created.
-Below is an example of deleting the constraint with `constraintRef` `con`:
+Below is an example of deleting a constraint with `constraintRef` `con`:
 ```julia
 @constraint(model, con, 4*x1 +  5*x2 +  8*x3 ==  40)
 delete(model, con)
