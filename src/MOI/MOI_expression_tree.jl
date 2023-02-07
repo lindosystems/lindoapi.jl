@@ -190,9 +190,14 @@ function quad_to_post(instructionList, quad_coeffs,affine_coeffs,
                                            quad_1_vars,quad_2_vars,
                                            affine_vars, constant, is_obj=true, rhs=0.0)
     pos = 1
-    instructionList[pos] = 0.5 ; pos += 1
+    instructionList[pos] = 1.0 ; pos += 1
     for i in eachindex(quad_coeffs)
-        instructionList[pos] = quad_coeffs[i] ; pos += 1
+        if ((quad_1_vars[i]).value==(quad_2_vars[i]).value)
+            instructionList[pos] = 0.5*quad_coeffs[i] 
+        else
+            instructionList[pos] = quad_coeffs[i] 
+        end
+        pos += 1
         instructionList[pos] = quad_1_vars[i] ; pos += 1
         instructionList[pos] = :*             ; pos += 1
         instructionList[pos] = quad_2_vars[i] ; pos += 1

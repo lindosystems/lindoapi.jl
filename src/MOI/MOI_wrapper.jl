@@ -722,7 +722,7 @@ function _parse(model::Optimizer,load::Bool)
                                                model.objective.data.coeffs)
         else
             # ScalarQuadraticFunction  _SCALAR_QUADRATIC
-            N = length(model.objective.data.quad_coeffs) * 6 + 2
+            N = length(model.objective.data.quad_coeffs) * 6 + 3
             if (length(model.objective.data.affine_coeffs) > 0)
                 N += length(model.objective.data.affine_coeffs) * 4 + 1
             end
@@ -734,6 +734,7 @@ function _parse(model::Optimizer,load::Bool)
                                               model.objective.data.quad_2_vars,
                                               model.objective.data.affine_vars,
                                               model.objective.data.constant)
+            
         end
         # if instructionList = [] no objective set should an error be thrown??
 
