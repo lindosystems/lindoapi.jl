@@ -1,4 +1,4 @@
-﻿# Lindo API in Julia 
+# Lindo API in Julia 
 
 
 
@@ -40,6 +40,13 @@ To add the package in Julia
 using Pkg
 Pkg.add(url="https://github.com/lindosystems/lindoapi.jl")
 ```
+
+To update the package in Julia
+```julia
+using Pkg
+Pkg.update("Lindoapi")
+```
+
 # Using the Soft Wrapper
 The [manual](https://www.lindo.com/downloads/PDF/API.pdf) has documentation on every function available, and plenty of samples all of which are straight forward to convert to Julia. For a quick start guide and to see how Julia works with the LINDO API this section will go through the steps that are important to getting started with the LINDO API.
 
@@ -335,7 +342,7 @@ Instead of writing the above constraint for $n$ times or defining them with a fo
 $\sum^n_{i=1,i\ne j} x_{i,j} = 1$ for $i = 1, \dots, n$ 
 ```julia
 @constraint(model,flow_into[k = 1:n],
-			sum(x[i,j] for i in 1:n if i != k) == 1)
+            sum(x[i,j] for i in 1:n if i != k) == 1)
 ```
 
 **Note:** The `@NLconstraint` macro does not support any matrix vector multiplication or dot product. The `sum` function however works just like the @constraint and constraint containers are also available.
@@ -353,18 +360,18 @@ To attach an objective to a model, use either the macros `@objective` or `@NLobj
 
 ```julia
 @objective(
-	model,
-	Min,
-	w'* Q * w
+    model,
+    Min,
+    w'* Q * w
 )
 ```
 
 ```julia
 @NLobjective(
-	model,
-	Min,
-	sum(x[i,j]*exp(f[i,j]*(x[i,j]-g[i,j]))
-	for i in 1:m, j in 1:n)
+    model,
+    Min,
+    sum(x[i,j]*exp(f[i,j]*(x[i,j]-g[i,j]))
+    for i in 1:m, j in 1:n)
 )
 ```
 
@@ -394,9 +401,9 @@ Model attributes can be set using the overloaded function `set_optimizer_attribu
 ```julia
 method = 1  # LS_METHOD_PSIMPLEX
 set_optimizer_attribute(
-	model,
-	"solverMethod",
-	 method
+    model,
+    "solverMethod",
+     method
 ) 
  ```
  
@@ -408,9 +415,9 @@ set_optimizer_attribute(
 iparam = Lindoapi.LindoIntParam(Lindoapi.LS_IPARAM_SOLVER_METHOD)
 solver_method = 3     #LS_METHOD_BARRIER
 JuMP.set_optimizer_attribute(
-	model,
-	iparam,
-	solver_method
+    model,
+    iparam,
+    solver_method
 )
 ```
 
@@ -424,9 +431,9 @@ JuMP.set_optimizer_attribute(
 iparam = Lindoapi.LindoDouParam(Lindoapi.LS_DPARAM_IPM_BASIS_TOL_S)
 adtol = 10^(-8)     #Maximum absolute dual bound violation
 JuMP.set_optimizer_attribute(
-	model,
-	iparam,
-	adtol
+    model,
+    iparam,
+    adtol
 )
 ```
 
@@ -482,19 +489,19 @@ MOI.set(model, Lindoapi.LogFunction(uDict), logFunc)
 ```
 ```julia
 function cbFunc(pModel, loc, uDict)
-	# your code here
+    # your code here
 end
 MOI.set(model, Lindoapi.CallbackFunction(uDict), cbFunc)
 ```
 ```julia
 function cbMIPFunc(modelPtr, uDict, objValue, pimalValues)
-	# your code here
+    # your code here
 end
 MOI.set(model, Lindoapi.MIPCallbackFunction(uDict), cbMIPFunc)
 ```
 ```julia
 function cbGOPFunc(modelPtr, uDict, objValue, pimalValues)
-	# your code here
+    # your code here
 end
 MOI.set(model, Lindoapi.GOPCallbackFunction(uDict), cbGOPFunc)
 ```
@@ -530,28 +537,28 @@ A list of supported functions supported to query the model and its variables
 `termination_status(model)`  A list of all possible returns and what LINDO termination status maps to them. 
 
 * OPTIMAL
-	* LS_STATUS_OPTIMAL
-	* LS_STATUS_BASIC_OPTIMAL
+    * LS_STATUS_OPTIMAL
+    * LS_STATUS_BASIC_OPTIMAL
 * ALMOST_OPTIMAL
-	* LS_STATUS_NEAR_OPTIMAL
+    * LS_STATUS_NEAR_OPTIMAL
 * LOCALLY_SOLVED
-	* LS_STATUS_LOCAL_OPTIMAL
+    * LS_STATUS_LOCAL_OPTIMAL
 * ALMOST_LOCALLY_SOLVED
-	* LS_STATUS_FEASIBLE
+    * LS_STATUS_FEASIBLE
 * INFEASIBLE
-	* LS_STATUS_INFEASIBLE
+    * LS_STATUS_INFEASIBLE
 * INFEASIBLE_OR_UNBOUNDED
-	* LS_STATUS_INFORUNB 
-	* LS_STATUS_UNBOUNDED
+    * LS_STATUS_INFORUNB 
+    * LS_STATUS_UNBOUNDED
 * LOCALLY_INFEASIBLE
-	* LS_STATUS_LOCAL_INFEASIBLE
+    * LS_STATUS_LOCAL_INFEASIBLE
 * OBJECTIVE_LIMIT
-	* LS_STATUS_CUTOFF
+    * LS_STATUS_CUTOFF
 * OPTIMIZE_NOT_CALLED
-	* LS_STATUS_UNLOADED
-	* LS_STATUS_LOADED
+    * LS_STATUS_UNLOADED
+    * LS_STATUS_LOADED
 * OTHER_ERROR
-	* LS_STATUS_UNKNOWN
+    * LS_STATUS_UNKNOWN
 
 `raw_status(model)` This function will return the LINDO termination status. For more detail on the LINDO termination status, see the Model Status table on pages 22-23 in the [LINDO API manual](https://www.lindo.com/downloads/PDF/API.pdf).
 
@@ -591,8 +598,8 @@ This function only works when the model is continuous.
 
 ```julia
 slacks = JuMP.get_optimizer_attribute(model,
-			Lindoapi.Slack_or_Surplus()
-		   )
+            Lindoapi.Slack_or_Surplus()
+           )
 portfolio_con_dual  = JuMP.dual(portfolio_con)
 return_con_dual     = JuMP.dual(return_con)
 portfolio_con_slack = slacks[1]
@@ -627,8 +634,8 @@ julia> solution_summary(model)
 julia> println(model)
 Max x + z
 Subject to
-x ≥ 0.0
-z ≥ 0.0
+x ? 0.0
+z ? 0.0
 (x ^ 2.0 + z ^ 2.0) - 4.0 = 0
 ```
 
