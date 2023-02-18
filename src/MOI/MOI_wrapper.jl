@@ -301,8 +301,8 @@ mutable struct _VariableInfo
         variable_info.column = column
         variable_info.vtype = 'C'
         variable_info.bound = _NONE
-        variable_info.lower_bound_bounded = -typemax(Float64)
-        variable_info.upper_bound_bounded = typemax(Float64)
+        variable_info.lower_bound_bounded = -LS_INFINITY
+        variable_info.upper_bound_bounded = LS_INFINITY
         variable_info.name = ""
         variable_info.valid = true
         return variable_info
@@ -869,6 +869,7 @@ function MOI.optimize!(model::Optimizer)
         nothing
     end
 
+    #LSwriteMPIFile(model,"temp.mpi") # write model to the MPI format
     if model.silent == false
         _setSolverCallback(model)
     end
