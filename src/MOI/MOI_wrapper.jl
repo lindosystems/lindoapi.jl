@@ -1291,6 +1291,7 @@ MOI.supports(::Optimizer, ::MOI.ObjectiveSense) = true
 MOI.supports(::Optimizer, ::MOI.NLPBlock) = true
 MOI.supports(::Optimizer, ::MOI.RawStatusString) = true
 MOI.supports(::Optimizer, ::MOI.RawOptimizerAttribute) = true
+MOI.supports(::Optimizer, ::MOI.RawOptimizerAttribute, ::Bool) = true
 MOI.supports(::Optimizer, ::MOI.ResultCount) = true
 MOI.supports(::Optimizer, ::MOI.PrimalStatus) = true
 MOI.supports(::Optimizer, ::MOI.DualStatus) = true
@@ -1418,7 +1419,7 @@ end
 • LS_METHOD_NLP: 4.
 
 =#
-function MOI.set(model::Optimizer, raw::MOI.RawOptimizerAttribute, value)
+function MOI.set(model::Optimizer, raw::MOI.RawOptimizerAttribute, value::Int)
     if raw.name == "solverMethod"
         model.solverMethod = Int32(value)
     else
