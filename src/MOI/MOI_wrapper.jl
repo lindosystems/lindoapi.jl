@@ -422,6 +422,8 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     usr_set_GOPcbfunc::Bool
     use_LSsolveMIP::Bool
     use_Global::Bool
+    MPI_file_path::String
+    output_MPI::Bool
     solverMethod::Int32
     nlp_data::MOI.NLPBlockData
     nlp_count::Int64
@@ -480,6 +482,8 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
         model.usr_set_GOPcbfunc = false
         model.use_LSsolveMIP = false
         model.use_Global = false
+        model.MPI_file_path = ""
+        model.output_MPI = false
         model.solverMethod = LS_METHOD_FREE
         model.nlp_count = 0
         model.load_index = 0
@@ -849,6 +853,7 @@ end
 # end
 
 function MOI.optimize!(model::Optimizer)
+    
     if model.loaded == false
         init_feat = Symbol[:ExprGraph]
         
@@ -869,7 +874,11 @@ function MOI.optimize!(model::Optimizer)
         nothing
     end
 
-    #LSwriteMPIFile(model,"temp.mpi") # write model to the MPI format
+    if model.output_MPI
+        ret = LSwriteMPIFile(model.ptr, model.MPI_file_path)
+        _check_ret(model, ret)
+    end
+
     if model.silent == false
         _setSolverCallback(model)
     end
@@ -1412,6 +1421,30 @@ end
 
 #=
 
+ Function: MOI.set // MOI.RawOptimizerAttribute // string
+
+ Brief: This is for setting attributes with string arguemnts
+        Such as file paths. 
+
+=#
+
+function MOI.set(model::Optimizer, raw::MOI.RawOptimizerAttribute, value::String)
+    if raw.name == "LSreadModelParameter"
+        LSreadModelParameter(model.ptr, value)
+    elseif raw.name == "LSwriteModelParameter"
+        LSwriteModelParameter(model.ptr, value)
+    elseif raw.name == "LSwriteMPIFile"
+        model.MPI_file_path = value
+        model.output_MPI = true
+    else
+        println("$(raw.name): Not supported")
+    end
+    return
+end
+
+
+#=
+
 • LS_METHOD_FREE: 0,
 • LS_METHOD_PSIMPLEX: 1,
 • LS_METHOD_DSIMPLEX: 2,
@@ -1436,10 +1469,10 @@ end
     Example: from JuMP
     set_optimizer_attribute(model,Lindoapi.LindoDouParam(Lindoapi.LS_DPARAM_CALLBACKFREQ),0.5)
 =#
-function MOI.set(model::Optimizer, name::Param, value
+function MOI.set(model::Optimizer, name::Param , value
     )where {Param <: Union{LindoIntParam, LindoDouParam}}
     if typeof(name) == LindoIntParam
-        ret = LSsetModelIntParameter(model.ptr, name.param, Int32(value))
+        ret = LSsetModelIntParameter(model.ptr, name.param, Int(value))
     else
         ret = LSsetModelDouParameter(model.ptr, name.param, Cdouble(value))
     end
@@ -1452,7 +1485,7 @@ end
     Function: MOI get LindoXXXParam()
     Brief: This function gets double and integer model parameters
     with by calling the API directly.
-    Example: from JuMP
+    Example: from JuMPS
     get_optimizer_attribute(model,Lindoapi.LindoDouParam(Lindoapi.LS_DPARAM_CALLBACKFREQ),0.5)
 =#
 function MOI.get(model::Optimizer, name::Param
