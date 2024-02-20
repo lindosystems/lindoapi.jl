@@ -340,7 +340,7 @@ mutable struct Env
 
     =#
     function Env()
-        fn = joinpath(PATH, "license/lndapi140.lic")
+        fn = joinpath(PATH, "license/lndapi150.lic")
         key = Vector{UInt8}(undef, 1024)
         ret = LSloadLicenseString(fn, key)
         if ret != 0
