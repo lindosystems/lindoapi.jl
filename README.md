@@ -83,7 +83,7 @@ PATH = ENV["LINDOAPI_HOME"]
 # used for performance
 LicenseKey = Vector{UInt8}(undef,1024)
 # joinpath is a built in function for concatenating two paths.
-license_path = joinpath(PATH,"license/lndapi130.lic")     
+license_path = joinpath(PATH,"license/lndapi150.lic")     
 ret = Lindoapi.LSloadLicenseString(license_path, LicenseKey)
 if ret != 0
     error("Key not found check key $(license_path)")

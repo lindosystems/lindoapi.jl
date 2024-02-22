@@ -58,7 +58,7 @@ pdUpper = Cdouble[5,LS.LS_INFINITY, 10, LS.LS_INFINITY]
 
 # Get API key
 LicenseKey = Vector{UInt8}(undef,1024)                                          # Allocating memory for a vector of 1024 UInt8
-license_path = joinpath(PATH,"license/lndapi130.lic")                           # Creating a license path to where the key is
+license_path = joinpath(PATH,"license/lndapi150.lic")                           # Creating a license path to where the key is
 ret = LS.LSloadLicenseString(license_path, LicenseKey)                          # Now calling API function
 if ret != 0
     error("Key not found check key $(license_path)")                            # Throwing an error if key not found
