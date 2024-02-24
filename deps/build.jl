@@ -24,9 +24,15 @@ if isfile(_DEPS_FILE)
 end
 
 function write_depsfile(path)
-    open(_DEPS_FILE, "w") do f
-        println(f, "const liblindo = \"$(escape_string(path))\"")
+    try 
+        open(_DEPS_FILE, "w") do f
+            println(f, "const liblindo = \"$(escape_string(path))\"")
     end
+        println("Dependency file written successfully.")
+    catch error
+        println("Error writing dependency file: $error")
+    end
+
 end
 
 is_64bits = Sys.WORD_SIZE == 64
