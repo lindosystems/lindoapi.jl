@@ -10,8 +10,6 @@ const LSsetModelIntParameter = Ptr{Cint}
 const LSgetModelDouParameter = Ptr{Cdouble}
 const LSmodifyConstraintType = Ptr{Cvoid}
 const LSmodifyVariableType = Ptr{Cvoid}
-const LSgetVersionInfo = Ptr{Cvoid}
-const LSgetErrorRowIndex = Ptr{Cvoid}
 const LSloadVarStartPoint = Ptr{Cdouble}
 const LSgetVarStartPointPartial = Ptr{Cdouble}
 
