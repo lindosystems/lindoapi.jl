@@ -2,16 +2,15 @@
 #########################################
 # Manual corrections to common.jl
 #########################################
-const LSgetVarType = Cchar
-const LSloadVarType = Ptr{Cchar}
-const LSsetModelParameter = Ptr{Cvoid}
-const LSgetModelParameter = Ptr{Cvoid}
-const LSsetModelIntParameter = Ptr{Cint}
-const LSgetModelDouParameter = Ptr{Cdouble}
-const LSmodifyConstraintType = Ptr{Cvoid}
-const LSmodifyVariableType = Ptr{Cvoid}
-const LSloadVarStartPoint = Ptr{Cdouble}
-const LSgetVarStartPointPartial = Ptr{Cdouble}
+#const LSgetVarType = Cchar
+#const LSloadVarType = Ptr{Cchar}
+# const LSsetModelParameter = Ptr{Cvoid}
+# const LSsetModelIntParameter = Ptr{Cint}
+# const LSgetModelDouParameter = Ptr{Cdouble}
+# const LSmodifyConstraintType = Ptr{Cvoid}
+# const LSmodifyVariableType = Ptr{Cvoid}
+# const LSloadVarStartPoint = Ptr{Cdouble}
+# const LSgetVarStartPointPartial = Ptr{Cdouble}
 
 # Automatically generated using Clang.jl
 
@@ -655,7 +654,6 @@ const LSloadMIPData = LSloadVarType
 const printModelLOG_t = Ptr{Cvoid}
 const printLOG_t = printModelLOG_t
 const LSsetParameter = LSsetModelParameter
-const LSgetParameter = LSgetModelParameter
 const LSsetModIntParameter = LSsetModelIntParameter
 const LSgetModDouParameter = LSgetModelDouParameter
 const LSmodifyConstrainttype = LSmodifyConstraintType
