@@ -16,7 +16,7 @@ catch
         exit(0)
 end
 
-@info "we are here ... $(dirname(@__FILE__))\n"
+@info "Working directory ... $(dirname(@__FILE__))\n"
 
 const PATH = ENV["LINDOAPI_HOME"]
 
