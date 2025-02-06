@@ -10,13 +10,14 @@
 =#
 using Libdl
 
-try 
-        const PATH = ENV["LINDOAPI_HOME"]
-catch
-        const PATH = ""
+if haskey(ENV, "LINDOAPI_HOME")
+    PATH = ENV["LINDOAPI_HOME"]
+else
+    PATH = ""
         @warn "Environment variable LINDOAPI_HOME is empty.  
                Please set LINDOAPI_HOME to the root of your LINDO API directory and reinstall this package. "
 end
+
 
 @info "Working directory ... $(dirname(@__FILE__))\n"
 
