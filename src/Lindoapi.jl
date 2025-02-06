@@ -23,15 +23,16 @@ include(depsjl_path)
 # and then reinstall this package
 if !isfile(liblindo)
     @warn "Lindo API not found. Please install the Lindo API and reinstall this package."
+else
+    using CEnum
+    include("gen/liblindo_common.jl")
+    include("gen/liblindo_api.jl")
+    include("gen/liblindo_api_callback.jl")
+    include("gen/ctypes.jl")
+    include("MOI/MOI_wrapper.jl")
+    export Ctm, Ctime_t, Cclock_t
 end
 
-using CEnum
-include("gen/liblindo_common.jl")
-include("gen/liblindo_api.jl")
-include("gen/liblindo_api_callback.jl")
-include("gen/ctypes.jl")
-include("MOI/MOI_wrapper.jl")
 
-export Ctm, Ctime_t, Cclock_t
 
 end # module
