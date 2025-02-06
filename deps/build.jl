@@ -10,15 +10,17 @@
 =#
 using Libdl
 
-try ENV["LINDOAPI_HOME"]
+try 
+        const PATH = ENV["LINDOAPI_HOME"]
 catch
-        error("Environment variable LINDOAPI_HOME is empty!")
-        exit(0)
+        const PATH = ""
+        @warn "Environment variable LINDOAPI_HOME is empty.  
+               Please set LINDOAPI_HOME to the root of your LINDO API directory and reinstall this package. "
 end
 
 @info "Working directory ... $(dirname(@__FILE__))\n"
 
-const PATH = ENV["LINDOAPI_HOME"]
+
 
 const _DEPS_FILE = joinpath(dirname(@__FILE__), "deps.jl")
 if isfile(_DEPS_FILE)
