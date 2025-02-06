@@ -59,10 +59,17 @@ end
 
 =#
 function ls_get_version(filename)
-    open(filename, "r")
-    lines = readlines(filename)
-    LS_MAJOR = rsplit(lines[1],"=")[2]
-    LS_MINOR= rsplit(lines[2],"=")[2]
+    
+    if !isfile(filename)
+        LS_MAJOR = 0
+        LS_MINOR = 0
+    else
+        open(filename, "r")
+        lines = readlines(filename)
+        LS_MAJOR = rsplit(lines[1],"=")[2]
+        LS_MINOR= rsplit(lines[2],"=")[2]
+    end
+
     return LS_MAJOR, LS_MINOR
 end
 
@@ -77,7 +84,9 @@ end
 function library()
     liblindo = ""
     LS_MAJOR, LS_MINOR = ls_get_version(joinpath(PATH, "include/lsversion.sh"))
-    if Sys.iswindows()
+    if LS_MAJOR == 0 && LS_MINOR == 0
+        liblindo = ""
+    elseif Sys.iswindows()
         if is_64bits
             liblindo = joinpath(PATH,"bin/win64/lindo64_"*LS_MAJOR*"_"*LS_MINOR)
         else
@@ -130,12 +139,11 @@ end
 function try_installation()
     liblindo, LS_MAJOR, LS_MINOR = library()
     if check_library(liblindo)
-        write_depsfile(liblindo, LS_MAJOR, LS_MINOR)
         @info "Found API location `$(liblindo)`"
-        return
     else
-        error(get_error_message_if_not_found())
+        @warn "Lindo API not found. Please install the Lindo API and reinstall this package."
     end
+    write_depsfile(liblindo, LS_MAJOR, LS_MINOR)
 end
 
 

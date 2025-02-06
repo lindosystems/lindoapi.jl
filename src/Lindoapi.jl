@@ -18,6 +18,13 @@ if !isfile(depsjl_path)
 end
 include(depsjl_path)
 
+# If there is no Lindo API, warn the user
+# Instruct them to install the Lindo API
+# and then reinstall this package
+if !isfile(liblindo)
+    @warn "Lindo API not found. Please install the Lindo API and reinstall this package."
+end
+
 using CEnum
 include("gen/liblindo_common.jl")
 include("gen/liblindo_api.jl")
