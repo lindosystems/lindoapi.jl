@@ -36,13 +36,13 @@ the soft wrapper.
 To run sample
    include("/PathToUse/JuMP_interface/qp.jl")
 
-To update to the most current version of Lindoapi.jl
+To update to the most current version of LindoAPI.jl
      Run in REPL:
          using Pkg
-         Pkg.add(url="https://github.com/lindosystems/lindoapi.jl"n)
+         Pkg.add(url="https://github.com/lindosystems/LindoAPI.jl"n)
 """
 
-using Lindoapi
+using LindoAPI
 using JuMP
 using Printf
 
@@ -60,7 +60,7 @@ K = 0.5
 
 
 
-model = Model(Lindoapi.Optimizer)
+model = Model(LindoAPI.Optimizer)
 
 
 
@@ -83,7 +83,7 @@ variance    = w_star'Q*w_star
 portfolio_con_dual = dual(portfolio_con)
 risk_con_dual      = dual(risk_con)
 portfolio_con_slack, risk_con_slack = get_optimizer_attribute(model,
-                                        Lindoapi.Slack_or_Surplus())
+                                        LindoAPI.Slack_or_Surplus())
 
 @printf("Expected Return: %.5f \n", obj_val)
 @printf("Variance       : %.5f \n", variance)

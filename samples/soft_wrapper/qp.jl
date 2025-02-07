@@ -37,17 +37,17 @@
 To run sample
    include("/PathToUse/soft_wrapper/qp.jl")
 
-To update to the most current version of Lindoapi.jl
+To update to the most current version of LindoAPI.jl
      Run in REPL:
          using Pkg
-         Pkg.add(url="https://github.com/lindosystems/lindoapi.jl")
+         Pkg.add(url="https://github.com/lindosystems/LindoAPI.jl")
 
 """
 
-import Lindoapi
+import LindoAPI
 using Printf
-const LS = Lindoapi
-PATH = ENV["LINDOAPI_HOME"]
+const LS = LindoAPI
+PATH = ENV["LindoAPI_HOME"]
 
 uDict = Dict()                                                                  # Empty Dict
 
@@ -183,7 +183,7 @@ LS.check_error(pEnv,errorcode)
 tpre       ncons      nvars         nnzA      time
  ini           2          4            4      0.00
 Problem
-  Name                   : lindoapi
+  Name                   : LindoAPI
   Objective sense        : max
   Type                   : QCQO (quadratically constrained optimization problem)
   Constraints            : 2
@@ -208,7 +208,7 @@ Lin. dep.  - tries                  : 1                 time
 Lin. dep.  - number                 : 0
 Presolve terminated. Time: 0.00
 Problem
-  Name                   : lindoapi
+  Name                   : LindoAPI
   Objective sense        : max
   Type                   : QCQO (quadratically constrained optimization problem)
   Constraints            : 2

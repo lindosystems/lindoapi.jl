@@ -1,7 +1,7 @@
-name = "Lindoapi"
+name = "LindoAPI"
 uuid = "5d56408f-8135-48b9-8e3b-17d984397714"
 version = "1.0.2"
-repo = "https://github.com/lindosystems/lindoapi.jl.git"
+repo = "https://github.com/lindosystems/LindoAPI.jl.git"
 
 [deps]
 CEnum = "fa961155-64e5-5f13-b03f-caf6b980ea82"

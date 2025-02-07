@@ -22,13 +22,13 @@ n_v: Number of vertices of polygon.
 To run sample
     include("/PathToUse/JuMP_interface/ex_Largest_Small_Polygon.jl")
 
-To update to the most current version of Lindoapi.jl
+To update to the most current version of LindoAPI.jl
 Run in REPL:
     using Pkg
-    Pkg.add(url="https://github.com/lindosystems/lindoapi.jl")
+    Pkg.add(url="https://github.com/lindosystems/LindoAPI.jl")
 
 This sample also uses the libraries Printf and Plots
-both are not added as dependencies when installing Lindoapi.jl
+both are not added as dependencies when installing LindoAPI.jl
 If not installed yet
 Run in REPL:
     using Pkg
@@ -37,7 +37,7 @@ Run in REPL:
 
 """
 
-using Lindoapi
+using LindoAPI
 using JuMP
 using Plots
 using Printf
@@ -51,7 +51,7 @@ n_v = 5
 
 
 # initialize an empty model
-model = Model( Lindoapi.Optimizer)
+model = Model( LindoAPI.Optimizer)
 set_optimizer_attribute(model,"use_Global",use_global)
 # make the two variable arrays of radius and theta
 # with the constraints

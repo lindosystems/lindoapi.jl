@@ -1,6 +1,6 @@
 #=
 
- File: Lindoapi.jl
+ File: LindoAPI.jl
  Brief: The file that is executed when the package is loaded.
         Includes all files needed to run the Lindo API in Julia
 
@@ -9,7 +9,7 @@
  Bugs:
 
 =#
-module Lindoapi
+module LindoAPI
 
 # Load in `deps.jl`, complaining if it does not exist
 const depsjl_path = joinpath(@__DIR__, "..", "deps", "deps.jl")

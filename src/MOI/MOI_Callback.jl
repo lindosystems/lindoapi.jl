@@ -71,9 +71,9 @@ end
 #=
  MOI.set
  Brief: Set a custom callback function.
- Example: MOI.set(model, Lindoapi.CallbackFunction(), foo)
+ Example: MOI.set(model, LindoAPI.CallbackFunction(), foo)
      where:
-     Lindoapi.CallbackFunction() - the type of callback function.
+     LindoAPI.CallbackFunction() - the type of callback function.
      foo - the callback subroutine.
 =#
 function MOI.set(model::Optimizer, cb_data::LogFunction, f::Function)
@@ -118,12 +118,12 @@ end
 =#
 function _setSolverCallback(model::Optimizer)
     if model.usr_set_logfunc == false
-        MOI.set(model, Lindoapi.LogFunction(model.uDict), logFunc)
+        MOI.set(model, LindoAPI.LogFunction(model.uDict), logFunc)
     end
     if model.use_Global == true && model.usr_set_GOPcbfunc == false && model.usr_set_cbfunc == false
-        MOI.set(model, Lindoapi.GOPCallbackFunction(model.uDict), cbGOPFunc)
+        MOI.set(model, LindoAPI.GOPCallbackFunction(model.uDict), cbGOPFunc)
     elseif model.use_LSsolveMIP == true && model.usr_set_MIPcbfunc == false && model.usr_set_cbfunc == false
-        MOI.set(model, Lindoapi.MIPCallbackFunction(model.uDict), cbMIPFunc)
+        MOI.set(model, LindoAPI.MIPCallbackFunction(model.uDict), cbMIPFunc)
     else
         nothing
     end

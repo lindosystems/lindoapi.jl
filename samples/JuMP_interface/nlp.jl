@@ -15,16 +15,16 @@
  To run sample
      include("/PathToUse/JuMP_interface/nlp.jl")
 
- To update to the most current version of Lindoapi.jl
+ To update to the most current version of LindoAPI.jl
       Run in REPL:
           using Pkg
-          Pkg.add(url="https://github.com/lindosystems/lindoapi.jl")
+          Pkg.add(url="https://github.com/lindosystems/LindoAPI.jl")
 """
 
-using Lindoapi
+using LindoAPI
 using JuMP
 using Printf
-const LS = Lindoapi
+const LS = LindoAPI
 # Set to true to use
 # the global solver
 use_Global = true
@@ -57,8 +57,8 @@ end
 
 
 # Create a model
-model = Model(Lindoapi.Optimizer)
-MOI.set(model, Lindoapi.CallbackFunction(uDict), cbFunc)
+model = Model(LindoAPI.Optimizer)
+MOI.set(model, LindoAPI.CallbackFunction(uDict), cbFunc)
 
 # Turn on global solver if use_GLoabal == true
 set_optimizer_attribute(model,"use_Global", use_Global)

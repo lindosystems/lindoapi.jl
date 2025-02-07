@@ -18,13 +18,13 @@ the soft wrapper
 To run sample
    include("/PathToUse/JuMP_interface/mip.jl")
 
-To update to the most current version of Lindoapi.jl
+To update to the most current version of LindoAPI.jl
      Run in REPL:
          using Pkg
-         Pkg.add(url="https://github.com/lindosystems/lindoapi.jl")
+         Pkg.add(url="https://github.com/lindosystems/LindoAPI.jl")
 """
 
-using Lindoapi
+using LindoAPI
 using JuMP
 using Printf
 
@@ -42,7 +42,7 @@ b = [-3
 mCons, nVars = size(A)
 
 # Create a model
-model = Model(Lindoapi.Optimizer)
+model = Model(LindoAPI.Optimizer)
 
 # Creating a vector of binary variables
 @variable(model, x[1:nVars], Bin)

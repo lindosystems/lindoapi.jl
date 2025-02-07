@@ -33,7 +33,7 @@ const _CON_F_TYPE =  Union{
 const CleverDicts = MOI.Utilities.CleverDicts
 const _HASH = CleverDicts.key_to_index
 const _INVERSE_HASH = x -> CleverDicts.index_to_key(MOI.VariableIndex, x)
-const PATH = ENV["LINDOAPI_HOME"]
+const PATH = ENV["LindoAPI_HOME"]
 
 const _SUPPORTED_OBJECTIVE_FUNCTION = Union{Nothing, MOI.AbstractFunction}
 
@@ -1236,10 +1236,10 @@ end
 
 #=
 
- Function MOI.get: // Lindoapi.Slack_or_Surplus
+ Function MOI.get: // LindoAPI.Slack_or_Surplus
  Brief: Gets a vector of slacks using LSgetMIPSlacks or LSgetSlacks
  Param model:
- Param attar: Sending Lindoapi.Slack_or_Surplus() will let the MOI know what getter is being called.
+ Param attar: Sending LindoAPI.Slack_or_Surplus() will let the MOI know what getter is being called.
 
  Returns: a vector of slacks
  TODO: Model this after MOI.VariablePrimal returning a single slack
@@ -1467,7 +1467,7 @@ end
     Brief: This function sets double and integer model parameters
     with by calling the API directly.
     Example: from JuMP
-    set_optimizer_attribute(model,Lindoapi.LindoDouParam(Lindoapi.LS_DPARAM_CALLBACKFREQ),0.5)
+    set_optimizer_attribute(model,LindoAPI.LindoDouParam(LindoAPI.LS_DPARAM_CALLBACKFREQ),0.5)
 =#
 function MOI.set(model::Optimizer, name::Param , value
     )where {Param <: Union{LindoIntParam, LindoDouParam}}
@@ -1486,7 +1486,7 @@ end
     Brief: This function gets double and integer model parameters
     with by calling the API directly.
     Example: from JuMPS
-    get_optimizer_attribute(model,Lindoapi.LindoDouParam(Lindoapi.LS_DPARAM_CALLBACKFREQ),0.5)
+    get_optimizer_attribute(model,LindoAPI.LindoDouParam(LindoAPI.LS_DPARAM_CALLBACKFREQ),0.5)
 =#
 function MOI.get(model::Optimizer, name::Param
     )where {Param <: Union{LindoIntParam, LindoDouParam}}

@@ -21,15 +21,15 @@
 To run sample
     include("/PathToUse/JuMP_interface/lp.jl")
 
-To update to the most current version of Lindoapi.jl
+To update to the most current version of LindoAPI.jl
  Run in REPL:
     using Pkg
-    Pkg.add(url="https://github.com/lindosystems/Lindoapi.jl")
+    Pkg.add(url="https://github.com/lindosystems/LindoAPI.jl")
 
 
 """
 
-using Lindoapi
+using LindoAPI
 using JuMP
 using Printf
 
@@ -39,7 +39,7 @@ cons = Vector{ConstraintRef}(undef, nCons)                                      
                                                                                 # ConstraintRef is the datatype
 
 # Create a model
-model = Model(Lindoapi.Optimizer)
+model = Model(LindoAPI.Optimizer)
 
 # Creating variables and bounds
 @variables(model,
@@ -69,7 +69,7 @@ if termination_status(model) == MOI.OPTIMAL
     obj_val = objective_value(model)                                            # all_variables(model) returns a vector
     x_star  = value.(all_variables(model))                                      # of all variables attached to model
     x_rd    = reduced_cost.(all_variables(model))                               # use the `.` to broadcast over vector
-    slacks  = get_optimizer_attribute(model,Lindoapi.Slack_or_Surplus())
+    slacks  = get_optimizer_attribute(model,LindoAPI.Slack_or_Surplus())
     duals   = dual.(cons)
 
     @printf("Objective is: %.5f \n", obj_val)

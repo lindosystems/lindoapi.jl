@@ -1,7 +1,7 @@
 #=
 
- File: Lindoapi.jl
- Brief: This file is ran when the Lindoapi is built
+ File: LindoAPI.jl
+ Brief: This file is ran when the LindoAPI is built
 
  Authors: Pkg generate, James Haas, Mustafa Atlihan
 
@@ -10,12 +10,12 @@
 =#
 using Libdl
 
-if haskey(ENV, "LINDOAPI_HOME")
-    PATH = ENV["LINDOAPI_HOME"]
+if haskey(ENV, "LindoAPI_HOME")
+    PATH = ENV["LindoAPI_HOME"]
 else
     PATH = ""
-        @warn "Environment variable LINDOAPI_HOME is empty.  
-               Please set LINDOAPI_HOME to the root of your LINDO API directory and reinstall this package. "
+        @warn "Environment variable LindoAPI_HOME is empty.  
+               Please set LindoAPI_HOME to the root of your LINDO API directory and reinstall this package. "
 end
 
 
@@ -46,7 +46,7 @@ is_64bits = Sys.WORD_SIZE == 64
 
 function get_error_message_if_not_found()
     return """
-    Unable to install Lindoapi.jl
+    Unable to install LindoAPI.jl
 
     """
 end

@@ -12,7 +12,7 @@
 
 =#
 
-using Lindoapi
+using LindoAPI
 using JuMP
 
 # optional multistart
@@ -21,7 +21,7 @@ bMultiStart = true
 n_multistarts = 5
 
 # Create a model
-model = Model(Lindoapi.Optimizer)
+model = Model(LindoAPI.Optimizer)
 
 # Creating the three variables
 @variable(model, 0 <= x <= 7)
@@ -40,10 +40,10 @@ Con3 = @constraint(model, x^2 + z^2 <= 23)
 if (bMultiStart)
 
     #uses CONOPT with multistart feature enabled. 
-    LS_IPARAM_NLP_SOLVER = Lindoapi.LindoIntParam(Lindoapi.LS_IPARAM_NLP_SOLVER)
+    LS_IPARAM_NLP_SOLVER = LindoAPI.LindoIntParam(LindoAPI.LS_IPARAM_NLP_SOLVER)
     JuMP.set_optimizer_attribute(model, LS_IPARAM_NLP_SOLVER, 9) 
     # set maximum number of multistarts
-    LS_IPARAM_NLP_MAXLOCALSEARCH = Lindoapi.LindoIntParam(Lindoapi.LS_IPARAM_NLP_MAXLOCALSEARCH)
+    LS_IPARAM_NLP_MAXLOCALSEARCH = LindoAPI.LindoIntParam(LindoAPI.LS_IPARAM_NLP_MAXLOCALSEARCH)
     JuMP.set_optimizer_attribute(model, LS_IPARAM_NLP_MAXLOCALSEARCH, n_multistarts) 
 
 end
