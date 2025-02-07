@@ -10,14 +10,6 @@
 =#
 using Libdl
 
-if haskey(ENV, "LINDOAPI_HOME")
-    PATH = ENV["LINDOAPI_HOME"]
-else
-    PATH = ""
-        @warn "Environment variable LINDOAPI_HOME is empty.  
-               Please set LINDOAPI_HOME to the root of your LINDO API directory and reinstall this package. "
-end
-
 
 @info "Working directory ... $(dirname(@__FILE__))\n"
 
@@ -86,6 +78,13 @@ end
 =#
 function library()
     liblindo = ""
+    if haskey(ENV, "LINDOAPI_HOME")
+        PATH = ENV["LINDOAPI_HOME"]
+    else
+        PATH = ""
+            @warn "Environment variable LINDOAPI_HOME is empty.  
+                   Please set LINDOAPI_HOME to the root of your LINDO API directory and reinstall this package. "
+    end
     LS_MAJOR, LS_MINOR = ls_get_version(joinpath(PATH, "include/lsversion.sh"))
     if LS_MAJOR == 0 && LS_MINOR == 0
         liblindo = ""
