@@ -18,25 +18,25 @@ See the [manual](https://www.lindo.com/downloads/PDF/API.pdf) for operating syst
 
 ## Installing LindoAPI.jl
 
-The Julia library needs to know where the LINDO API is stored. To do so create an environment variable named. ```LindoAPI_HOME```. 
+The Julia library needs to know where the LINDO API is stored. To do so create an environment variable named. ```LINDOAPI_HOME```. 
 ### Using Windows
 On the command line
 ```dos
-> set LindoAPI_HOME="c:/LindoAPI"
+> set LINDOAPI_HOME="c:/LindoAPI"
 ```
 Or in Julia
 ```julia
-ENV["LindoAPI_HOME"] = "c:/LindoAPI"
+ENV["LINDOAPI_HOME"] = "c:/LindoAPI"
 ```
 
 ### Using Mac or Linux
 On the command line
 ```sh
-$ export LindoAPI_HOME="/opt/LindoAPI"
+$ export LINDOAPI_HOME="/opt/LindoAPI"
 ```
 Or in julia
 ```julia
-ENV["LindoAPI_HOME"] = "/opt/LindoAPI"
+ENV["LINDOAPI_HOME"] = "/opt/LindoAPI"
 ```
 
 To add the package in Julia
@@ -78,7 +78,7 @@ This function loads users license key into an array. This function comes first s
 ``Returns``: An error code of type Int if not 0 then it has failed.
 
 ```julia
-PATH = ENV["LindoAPI_HOME"]
+PATH = ENV["LINDOAPI_HOME"]
 # undef argument for not initializing the vector
 # used for performance
 LicenseKey = Vector{UInt8}(undef,1024)

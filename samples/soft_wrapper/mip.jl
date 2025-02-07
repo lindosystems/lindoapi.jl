@@ -27,7 +27,7 @@ To update to the most current version of LindoAPI.jl
 import LindoAPI
 using Printf
 const LS = LindoAPI
-PATH = ENV["LindoAPI_HOME"]
+PATH = ENV["LINDOAPI_HOME"]
 
 uDict = Dict(                                                                   # A dictionary to hold passthrough data
 "Prefix" => "Lindo API",

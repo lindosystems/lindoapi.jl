@@ -32,7 +32,7 @@ To update to the most current version of LindoAPI.jl
 import LindoAPI
 using Printf
 const LS = LindoAPI
-PATH = ENV["LindoAPI_HOME"]
+PATH = ENV["LINDOAPI_HOME"]
 
 uDict = Dict()                                                                  # Empty Dict
 

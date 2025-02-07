@@ -33,7 +33,7 @@ const _CON_F_TYPE =  Union{
 const CleverDicts = MOI.Utilities.CleverDicts
 const _HASH = CleverDicts.key_to_index
 const _INVERSE_HASH = x -> CleverDicts.index_to_key(MOI.VariableIndex, x)
-const PATH = ENV["LindoAPI_HOME"]
+const PATH = ENV["LINDOAPI_HOME"]
 
 const _SUPPORTED_OBJECTIVE_FUNCTION = Union{Nothing, MOI.AbstractFunction}
 

@@ -10,12 +10,12 @@
 =#
 using Libdl
 
-if haskey(ENV, "LindoAPI_HOME")
-    PATH = ENV["LindoAPI_HOME"]
+if haskey(ENV, "LINDOAPI_HOME")
+    PATH = ENV["LINDOAPI_HOME"]
 else
     PATH = ""
-        @warn "Environment variable LindoAPI_HOME is empty.  
-               Please set LindoAPI_HOME to the root of your LINDO API directory and reinstall this package. "
+        @warn "Environment variable LINDOAPI_HOME is empty.  
+               Please set LINDOAPI_HOME to the root of your LINDO API directory and reinstall this package. "
 end
 
 
