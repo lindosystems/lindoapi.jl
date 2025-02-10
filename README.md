@@ -42,7 +42,7 @@ ENV["LINDOAPI_HOME"] = "/opt/LindoAPI"
 To add the package in Julia
 ```julia
 using Pkg
-Pkg.add(url="https://github.com/lindosystems/LindoAPI.jl")
+Pkg.add("LindoAPI")
 ```
 
 To update the package in Julia
